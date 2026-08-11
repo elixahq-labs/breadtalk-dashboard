@@ -1,0 +1,98 @@
+Date|Month|Ticket-Type|Pos-ID|Outlet-Code|Store-Code|Store-Name|Type-Info|SKU|Product-Name|Category|Group|Royalty-Group|Qty|Sales|Discount|Voucher|Gross-Sales|VAT
+08-Jul-26|Jul.26|Ticket|117147|10640|VGP|BreadTalk Vinhomes Grand Park|Process-Ticket||||||1|0|0|0|0|0
+09-Jul-26|Jul.26|Ticket|117147|10640|VGP|BreadTalk Vinhomes Grand Park|Process-Ticket||||||1|0|0|0|0|0
+11-Jul-26|Jul.26|Ticket|117147|10640|VGP|BreadTalk Vinhomes Grand Park|Process-Ticket||||||1|0|0|0|0|0
+12-Jul-26|Jul.26|Ticket|117147|10640|VGP|BreadTalk Vinhomes Grand Park|Process-Ticket||||||1|0|0|0|0|0
+13-Jul-26|Jul.26|Ticket|117156|10644|AHP|BreadTalk Aeon Mall Hải Phòng|Buying-Ticket||||||1|0|0|0|0|0
+13-Jul-26|Jul.26|Ticket|117147|10640|VGP|BreadTalk Vinhomes Grand Park|Process-Ticket||||||1|0|0|0|0|0
+14-Jul-26|Jul.26|Ticket|117130|10614|ATP|BreadTalk AeonMall Tân Phú|Buying-Ticket||||||2|0|0|0|0|0
+14-Jul-26|Jul.26|Ticket|117134|10632|GGM|BreadTalk Gigamall|Buying-Ticket||||||1|0|0|0|0|0
+14-Jul-26|Jul.26|Ticket|117151|10621|ALB|BreadTalk AeonMall Long Biên|Buying-Ticket||||||1|0|0|0|0|0
+14-Jul-26|Jul.26|Ticket|117129|10637|ACO|BreadTalk Âu Cơ|Import-Ticket||||||2|0|0|0|0|0
+14-Jul-26|Jul.26|Ticket|117153|10629|RYC|BreadTalk Vincom Royal City|Import-Ticket||||||2|0|0|0|0|0
+14-Jul-26|Jul.26|Ticket|117128|10622|ABT|BreadTalk AeonMall Bình Tân|Import-Ticket||||||1|0|0|0|0|0
+14-Jul-26|Jul.26|Ticket|117147|10640|VGP|BreadTalk Vinhomes Grand Park|Process-Ticket||||||1|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117133|10612|CTV|BreadTalk Cantavil|Import-Ticket||||||1|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117134|10632|GGM|BreadTalk Gigamall|Import-Ticket||||||2|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117149|10618|VVO|BreadTalk SC VivoCity|Import-Ticket||||||2|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117138|10645|NZE|BreadTalk Nowzone|Import-Ticket||||||1|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117147|10640|VGP|BreadTalk Vinhomes Grand Park|Import-Ticket||||||2|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117148|10626|VHM|BreadTalk Vạn Hạnh Mall|Import-Ticket||||||2|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117153|10629|RYC|BreadTalk Vincom Royal City|Import-Ticket||||||2|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117136|10650|MNM|BreadTalk Menas Mall|Import-Ticket||||||1|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117130|10614|ATP|BreadTalk AeonMall Tân Phú|Import-Ticket||||||5|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117146|10648|VGO|BreadTalk Vinhomes Grand Origami|Import-Ticket||||||1|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117147|10640|VGP|BreadTalk Vinhomes Grand Park|Process-Ticket||||||1|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117156|10644|AHP|BreadTalk Aeon Mall Hải Phòng|Process-Ticket||||||1|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117128|10622|ABT|BreadTalk AeonMall Bình Tân|Buying-Ticket||||||1|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117150|10636|AHD|BreadTalk AeonMall Hà Đông|Buying-Ticket||||||1|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117151|10621|ALB|BreadTalk AeonMall Long Biên|Buying-Ticket||||||1|0|0|0|0|0
+15-Jul-26|Jul.26|Ticket|117128|10622|ABT|BreadTalk AeonMall Bình Tân|Import-Ticket||||||5|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117128|10622|ABT|BreadTalk AeonMall Bình Tân|Buying-Ticket||||||1|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117153|10629|RYC|BreadTalk Vincom Royal City|Buying-Ticket||||||1|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117159|10653|SSG|BreadTalk Siêu thị Sài Gòn|Import-Ticket||||||2|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117155|10655|HNC|BreadTalk Hà Nội Centre|Import-Ticket||||||2|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117153|10629|RYC|BreadTalk Vincom Royal City|Import-Ticket||||||2|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117149|10618|VVO|BreadTalk SC VivoCity|Import-Ticket||||||1|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117148|10626|VHM|BreadTalk Vạn Hạnh Mall|Import-Ticket||||||3|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117147|10640|VGP|BreadTalk Vinhomes Grand Park|Import-Ticket||||||1|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117146|10648|VGO|BreadTalk Vinhomes Grand Origami|Import-Ticket||||||3|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117142|10623|SGC|BreadTalk Saigon Centre|Import-Ticket||||||4|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117141|10652|SCM|BreadTalk Satra Centre Mall|Import-Ticket||||||2|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117136|10650|MNM|BreadTalk Menas Mall|Import-Ticket||||||2|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117134|10632|GGM|BreadTalk Gigamall|Import-Ticket||||||1|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117133|10612|CTV|BreadTalk Cantavil|Import-Ticket||||||2|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117130|10614|ATP|BreadTalk AeonMall Tân Phú|Import-Ticket||||||4|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117129|10637|ACO|BreadTalk Âu Cơ|Import-Ticket||||||3|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117128|10622|ABT|BreadTalk AeonMall Bình Tân|Import-Ticket||||||2|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117155|10655|HNC|BreadTalk Hà Nội Centre|Buying-Ticket||||||1|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Buying-Ticket||||||2|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||5|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117151|10621|ALB|BreadTalk AeonMall Long Biên|Process-Ticket||||||1|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117147|10640|VGP|BreadTalk Vinhomes Grand Park|Process-Ticket||||||1|0|0|0|0|0
+16-Jul-26|Jul.26|Ticket|117138|10645|NZE|BreadTalk Nowzone|Import-Ticket||||||2|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117149|10618|VVO|BreadTalk SC VivoCity|Import-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117159|10653|SSG|BreadTalk Siêu thị Sài Gòn|Import-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117148|10626|VHM|BreadTalk Vạn Hạnh Mall|Import-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117129|10637|ACO|BreadTalk Âu Cơ|Import-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117141|10652|SCM|BreadTalk Satra Centre Mall|Import-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117128|10622|ABT|BreadTalk AeonMall Bình Tân|Buying-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117142|10623|SGC|BreadTalk Saigon Centre|Buying-Ticket||||||2|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117150|10636|AHD|BreadTalk AeonMall Hà Đông|Buying-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117151|10621|ALB|BreadTalk AeonMall Long Biên|Buying-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117156|10644|AHP|BreadTalk Aeon Mall Hải Phòng|Buying-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117157|10649|AHU|BreadTalk Aeon Mall Huế|Buying-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117147|10640|VGP|BreadTalk Vinhomes Grand Park|Import-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117132|10606|CRM|BreadTalk Crescent Mall|Import-Ticket||||||2|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117133|10612|CTV|BreadTalk Cantavil|Import-Ticket||||||2|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117136|10650|MNM|BreadTalk Menas Mall|Import-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117137|10604|NTP|BreadTalk Nguyễn Tri Phương|Import-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Buying-Ticket||||||1|0|0|0|0|0
+17-Jul-26|Jul.26|Ticket|117138|10645|NZE|BreadTalk Nowzone|Import-Ticket||||||1|0|0|0|0|0
+18-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+18-Jul-26|Jul.26|Ticket|117129|10637|ACO|BreadTalk Âu Cơ|Import-Ticket||||||1|0|0|0|0|0
+18-Jul-26|Jul.26|Ticket|117132|10606|CRM|BreadTalk Crescent Mall|Import-Ticket||||||2|0|0|0|0|0
+18-Jul-26|Jul.26|Ticket|117159|10653|SSG|BreadTalk Siêu thị Sài Gòn|Import-Ticket||||||1|0|0|0|0|0
+18-Jul-26|Jul.26|Ticket|117141|10652|SCM|BreadTalk Satra Centre Mall|Import-Ticket||||||2|0|0|0|0|0
+18-Jul-26|Jul.26|Ticket|117138|10645|NZE|BreadTalk Nowzone|Import-Ticket||||||1|0|0|0|0|0
+18-Jul-26|Jul.26|Ticket|117136|10650|MNM|BreadTalk Menas Mall|Import-Ticket||||||1|0|0|0|0|0
+19-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+19-Jul-26|Jul.26|Ticket|117141|10652|SCM|BreadTalk Satra Centre Mall|Import-Ticket||||||2|0|0|0|0|0
+19-Jul-26|Jul.26|Ticket|117159|10653|SSG|BreadTalk Siêu thị Sài Gòn|Import-Ticket||||||1|0|0|0|0|0
+19-Jul-26|Jul.26|Ticket|117129|10637|ACO|BreadTalk Âu Cơ|Import-Ticket||||||1|0|0|0|0|0
+19-Jul-26|Jul.26|Ticket|117132|10606|CRM|BreadTalk Crescent Mall|Import-Ticket||||||2|0|0|0|0|0
+19-Jul-26|Jul.26|Ticket|117136|10650|MNM|BreadTalk Menas Mall|Import-Ticket||||||1|0|0|0|0|0
+19-Jul-26|Jul.26|Ticket|117138|10645|NZE|BreadTalk Nowzone|Import-Ticket||||||1|0|0|0|0|0
+20-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+21-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+22-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+23-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+24-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+25-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+26-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+27-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+28-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+29-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+30-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
+31-Jul-26|Jul.26|Ticket|117158|10630|TVD|BreadTalk Trần Viễn Đông|Process-Ticket||||||1|0|0|0|0|0
