@@ -1,14 +1,24 @@
-import { getDashboardData } from '@/lib/data-parser';
+import fs from 'fs';
+import path from 'path';
 import DashboardClient from '../components/DashboardClient';
 
-export default async function DashboardPage() {
-  // Lấy dữ liệu SỐNG từ các file overall*.txt trên OneDrive
-  const rawData = await getDashboardData();
+export default function DashboardPage() {
+  // Trỏ vào thư mục public/data
+  const dataDir = path.join(process.cwd(), 'public', 'data');
+  let fileNames: string[] = [];
 
+  try {
+    const files = fs.readdirSync(dataDir);
+    // Chỉ lấy tên các file txt
+    fileNames = files.filter(f => f.endsWith('.txt'));
+  } catch (e) {
+    console.error("Không tìm thấy thư mục data", e);
+  }
+
+  // Truyền mỗi cái danh sách tên file xuống cho Giao diện
   return (
     <main>
-      {/* Ném cục data sang cho Client Component để xử lý filter tương tác */}
-      <DashboardClient rawData={rawData} />
+      <DashboardClient fileNames={fileNames} />
     </main>
   );
 }
