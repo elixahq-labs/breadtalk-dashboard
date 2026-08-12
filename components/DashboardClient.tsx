@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
 import { AreaChart, Area, PieChart, Pie, Cell, ComposedChart, Line, LineChart, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Star, AlertCircle } from 'lucide-react';
 
 export default function DashboardClient({ fileNames }: { fileNames: string[] }) {
   const [rawData, setRawData] = useState<any[]>([]);
@@ -84,7 +84,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     netRevenue, totalBills, aov, discountRateTB, wasteQty, cancelRate, 
     trendData, paymentData, topSalesByGroup, topWasteByGroup, 
     agingTickets, pendingStats, gapData, filteredCount, prevStats,
-    promoRev, promoDisc, promoQty, promoList, topPromoByQty, topPromoByRev
+    promoRev, promoDisc, promoQty, promoList, topPromoByQty, topPromoByRev,
+    avgRating, totalReviews, reviewList, ratingDist,
+    totalMistakes, mistakeList, mistakeCatDist
   } = useMemo(() => {
     
     let rev = 0, totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0;
@@ -107,6 +109,14 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const salesMapByGroup: Record<string, Record<string, any>> = {};
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
     const promoMap: Record<string, any> = {}; 
+
+    // Biến cho REVIEWS & MISTAKES
+    let sumRating = 0, countRating = 0, countMistakes = 0;
+    let prevSumRating = 0, prevCountRating = 0, prevCountMistakes = 0;
+    const rList: any[] = [];
+    const mList: any[] = [];
+    const ratingCountMap: Record<string, number> = { '5 Stars': 0, '4 Stars': 0, '3 Stars': 0, '2 Stars': 0, '1 Star': 0 };
+    const mistakeCatMap: Record<string, number> = {};
     
     let fCount = 0;
     const today = new Date('2026-08-12').getTime(); 
@@ -139,26 +149,40 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const gross = parseNum(row['Gross-Sales']);
       const disc = parseNum(row['Discount']);
       const salesVal = parseNum(row['Sales']);
+      
+      const sourceMistake = clean(row['Source-Mistake']);
+      const mistakeDetails = clean(row['Mistake-Details']);
 
-      if (!rowTime) return;
+      const isCurrentPeriod = rowTime && rowTime >= startTime && rowTime <= endTime;
+      const isPrevPeriod = rowTime && rowTime >= prevStartTime && rowTime <= prevEndTime;
+      const isDateEmpty = !rowTime; 
 
-      const isCurrentPeriod = rowTime >= startTime && rowTime <= endTime;
-      const isPrevPeriod = rowTime >= prevStartTime && rowTime <= prevEndTime;
-
-      // 1. PREVIOUS PERIOD LOGIC
+      // --- 1. PREVIOUS PERIOD LOGIC (PoP) ---
       if (isPrevPeriod) {
         if (tType === 'Sales') { prevRev += gross; prevTotalDiscount += disc; }
         if (tType === 'Count-Bills') prevCountBills += qty;
         if (tType === 'Cancel') prevCancelBills += qty;
         if (tType === 'Waste') prevWaste += qty;
+        
         if (tType === 'Promotion') {
           prevMktPromoRev += gross;
           prevMktPromoDisc += disc;
           prevMktPromoQty += qty;
         }
+
+        // Bổ sung PoP cho Reviews & Mistakes
+        if (tType === 'Cus-Reviews' || tType === 'Reviews') {
+          if (qty > 0 && qty <= 5) {
+             prevSumRating += qty;
+             prevCountRating += 1;
+          }
+        }
+        if (tType === 'Mistake') {
+          prevCountMistakes += qty;
+        }
       }
 
-      // 2. GAP LOGIC
+      // --- 2. GAP LOGIC ---
       if (sku) {
         const key = `${groupName}_${sku}`;
         if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open:0, process:0, import:0, export:0, sales:0, waste:0, stock:0, gap:0 };
@@ -175,8 +199,37 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         }
       }
 
-      // 3. CURRENT PERIOD LOGIC
-      if (isCurrentPeriod) {
+      // --- 3. CURRENT PERIOD LOGIC ---
+      if (isCurrentPeriod || isDateEmpty) {
+        
+        // REVIEWS & MISTAKES LOGIC (Hoạt động kể cả khi date trống)
+        if (tType === 'Cus-Reviews' || tType === 'Reviews') {
+          if (qty > 0 && qty <= 5) {
+             sumRating += qty;
+             countRating += 1;
+             
+             const rounded = Math.round(qty);
+             if (rounded === 5) ratingCountMap['5 Stars']++;
+             else if (rounded === 4) ratingCountMap['4 Stars']++;
+             else if (rounded === 3) ratingCountMap['3 Stars']++;
+             else if (rounded === 2) ratingCountMap['2 Stars']++;
+             else if (rounded === 1) ratingCountMap['1 Star']++;
+          }
+          if (tType === 'Reviews' && mistakeDetails) {
+             rList.push({ date: dateStr || 'N/A', store: store, rating: qty, source: sourceMistake, text: mistakeDetails });
+          }
+        }
+
+        if (tType === 'Mistake') {
+          countMistakes += qty;
+          const catName = tInfo || 'Uncategorized';
+          mistakeCatMap[catName] = (mistakeCatMap[catName] || 0) + qty;
+          mList.push({ date: dateStr || 'N/A', store: store, category: catName, source: sourceMistake, details: mistakeDetails, qty: qty });
+        }
+
+        // TỪ ĐÂY CHỞ ĐI CHỈ XỬ LÝ NẾU CÓ NGÀY HỢP LỆ
+        if (!isCurrentPeriod) return; 
+
         fCount++;
         activeDates.add(dateStr);
         activeStores.add(store);
@@ -206,25 +259,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           }
         }
 
-        // PROMOTION
         if (tType === 'Promotion') {
           const pName = tInfo || 'Others';
-          mktPromoRev += gross;
-          mktPromoDisc += disc;
-          mktPromoQty += qty;
-          
+          mktPromoRev += gross; mktPromoDisc += disc; mktPromoQty += qty;
           trendMap[day].promoRevenue += gross;
 
-          if (!promoMap[pName]) {
-            promoMap[pName] = { name: pName, qty: 0, sales: 0, discount: 0, gross: 0 };
-          }
-          promoMap[pName].qty += qty;
-          promoMap[pName].sales += salesVal;
-          promoMap[pName].discount += disc;
-          promoMap[pName].gross += gross;
+          if (!promoMap[pName]) promoMap[pName] = { name: pName, qty: 0, sales: 0, discount: 0, gross: 0 };
+          promoMap[pName].qty += qty; promoMap[pName].sales += salesVal; promoMap[pName].discount += disc; promoMap[pName].gross += gross;
         }
 
-        // PENDING TICKETS
         if (tType === 'Ticket') { 
           if (tInfo === 'Waste-Ticket' && qty > 0) {
             if (!wasteTrackMap[store]) wasteTrackMap[store] = {};
@@ -249,6 +292,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       }
     });
 
+    // CHỐT DATA OVERVIEW
     const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
     const pColors = ['#2563eb', '#f97316', '#10b981', '#fbbf24', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
@@ -279,10 +323,16 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       return b.aging - a.aging;
     });
 
-    // MARKETING TOP 10
+    // CHỐT DATA MARKETING
     const mktPromoList = Object.values(promoMap).sort((a, b) => b.gross - a.gross); 
     const mktTopByQty = [...mktPromoList].sort((a, b) => b.qty - a.qty).slice(0, 10);
     const mktTopByRev = [...mktPromoList].sort((a, b) => b.gross - a.gross).slice(0, 10);
+
+    // CHỐT DATA REVIEWS & MISTAKES
+    const aRating = countRating > 0 ? sumRating / countRating : 0;
+    const rColors = ['#10b981', '#84cc16', '#fbbf24', '#f97316', '#ef4444'];
+    const rDistData = Object.keys(ratingCountMap).map((k, i) => ({ name: k, value: ratingCountMap[k], color: rColors[i] })).filter(x => x.value > 0);
+    const mCatDistData = Object.keys(mistakeCatMap).map(k => ({ name: k, qty: mistakeCatMap[k] })).sort((a, b) => b.qty - a.qty);
 
     const prevStatsResult = {
       netRevenue: prevRev,
@@ -293,7 +343,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       cancelRate: prevCountBills > 0 ? (prevCancelBills / prevCountBills) * 100 : 0,
       promoRev: prevMktPromoRev,
       promoDisc: prevMktPromoDisc,
-      promoQty: prevMktPromoQty
+      promoQty: prevMktPromoQty,
+      prevAvgRating: prevCountRating > 0 ? prevSumRating / prevCountRating : 0,
+      prevTotalReviews: prevCountRating,
+      prevTotalMistakes: prevCountMistakes
     };
 
     return {
@@ -301,10 +354,13 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       wasteQty: waste, cancelRate: countBills > 0 ? (cancelBills / countBills) * 100 : 0,
       trendData: tData, paymentData: pData, topSalesByGroup: tSalesGroup, topWasteByGroup: tWasteGroup, agingTickets: finalAgingTickets, pendingStats: pStats, gapData: gData, filteredCount: fCount,
       promoRev: mktPromoRev, promoDisc: mktPromoDisc, promoQty: mktPromoQty, promoList: mktPromoList, topPromoByQty: mktTopByQty, topPromoByRev: mktTopByRev,
+      avgRating: aRating, totalReviews: countRating, reviewList: rList, ratingDist: rDistData,
+      totalMistakes: countMistakes, mistakeList: mList, mistakeCatDist: mCatDistData,
       prevStats: prevStatsResult 
     };
   }, [baseFilteredData, startDate, endDate, rawData]);
 
+  // HÀM RENDER CHỈ SỐ SO SÁNH (PoP)
   const renderPoP = (current: number, prev: number, inverseColor: boolean = false) => {
     if (!prev || prev === 0) return <span className="text-[10px] sm:text-xs text-gray-400 ml-2 font-normal">--</span>; 
     if (current === prev) return null; 
@@ -341,16 +397,21 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       <div className="mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-50">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
           <h1 className="text-lg md:text-xl font-bold text-gray-900">Operations Dashboard</h1>
-          <div className="flex bg-gray-100 p-1 rounded-lg">
+          <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto w-full sm:w-auto">
             <button 
               onClick={() => setActiveTab('Overview')} 
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'Overview' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Overview' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
               Overview
             </button>
             <button 
               onClick={() => setActiveTab('Marketing')} 
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'Marketing' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Marketing' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
               Marketing
+            </button>
+            <button 
+              onClick={() => setActiveTab('Reviews')} 
+              className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Reviews' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              Reviews & Mistakes
             </button>
           </div>
         </div>
@@ -693,7 +754,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
           <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
             <h3 className="font-bold text-base sm:text-lg mb-2">Promotion Details Table</h3>
-            <p className="text-xs text-gray-500 mb-4">*Sorted by Gross-Sales (descending)</p>
             <div className="overflow-y-auto overflow-x-auto max-h-[500px] mt-2 relative">
               <table className="w-full text-sm text-left whitespace-nowrap">
                 <thead className="sticky top-0 bg-white z-10 shadow-sm">
@@ -716,7 +776,158 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                     </tr>
                   ))}
                   {promoList.length === 0 && (
-                    <tr><td colSpan={5} className="text-center py-6 text-gray-500">No promotion data available for this period.</td></tr>
+                    <tr><td colSpan={5} className="text-center py-6 text-gray-500">No promotion data available.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* =========================================
+          TAB 3: REVIEWS & MISTAKES
+      ========================================= */}
+      {activeTab === 'Reviews' && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
+            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Average Rating</p>
+              <div className="flex items-center justify-center">
+                <span className="text-4xl font-black text-gray-800 mr-2">{avgRating.toFixed(2)}</span>
+                <Star className="text-yellow-400 fill-yellow-400 w-8 h-8" />
+                <div className="ml-2 mb-1">{renderPoP(avgRating, prevStats.prevAvgRating, false)}</div>
+              </div>
+            </div>
+            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Total Reviews</p>
+              <div className="flex items-center justify-center">
+                <span className="text-4xl font-black text-blue-600">{formatUS(totalReviews)}</span>
+                <div className="ml-2 mb-1">{renderPoP(totalReviews, prevStats.prevTotalReviews, false)}</div>
+              </div>
+            </div>
+            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Operational Mistakes</p>
+              <div className="flex items-center justify-center">
+                <span className="text-4xl font-black text-red-500 mr-2">{formatUS(totalMistakes)}</span>
+                <AlertCircle className="text-red-500 w-7 h-7" />
+                <div className="ml-2 mb-1">{renderPoP(totalMistakes, prevStats.prevTotalMistakes, true)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+            {/* RATING DISTRIBUTION PIE CHART */}
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Rating Distribution</h3>
+              <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6">
+                 <div className="h-48 sm:h-64 w-full md:w-1/2 shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={ratingDist} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="value">
+                        {ratingDist.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip formatter={(value: any) => formatUS(value)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-full md:w-1/2 flex flex-col justify-center gap-2 sm:gap-3">
+                  {ratingDist.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs sm:text-sm w-full border-b border-gray-50 pb-2 last:border-0">
+                      <div className="flex items-center flex-1">
+                        <span className="w-3 h-3 rounded-full mr-2 shrink-0" style={{ backgroundColor: p.color }}></span>
+                        <span className="text-gray-600 font-medium">{p.name}</span>
+                      </div>
+                      <span className="font-bold text-gray-900">{formatUS(p.value)}</span>
+                    </div>
+                  ))}
+                  {ratingDist.length === 0 && <p className="text-sm text-gray-500 text-center w-full">No rating data.</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* MISTAKES BY CATEGORY BAR CHART */}
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Mistakes by Category</h3>
+              <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
+                <div className="absolute inset-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={mistakeCatDist} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                      <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#fef2f2'}} />
+                      <Bar dataKey="qty" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={24} name="Count" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* MISTAKES LOG TABLE */}
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
+            <h3 className="font-bold text-base sm:text-lg mb-2 text-red-600">Operational Mistakes Log</h3>
+            <div className="overflow-y-auto overflow-x-auto max-h-[350px] mt-2 relative border border-gray-100 rounded-lg">
+              <table className="w-full text-sm text-left whitespace-nowrap">
+                <thead className="sticky top-0 bg-red-50 z-10">
+                  <tr className="text-red-800 border-b border-red-100">
+                    <th className="py-3 px-3 font-semibold">Date</th>
+                    <th className="py-3 px-3 font-semibold">Store</th>
+                    <th className="py-3 px-3 font-semibold">Category</th>
+                    <th className="py-3 px-3 font-semibold">Source</th>
+                    <th className="py-3 px-3 font-semibold w-1/2">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mistakeList.map((row, idx) => (
+                    <tr key={idx} className="border-b border-gray-50 text-gray-700 hover:bg-red-50/50">
+                      <td className="py-3 px-3 text-xs sm:text-sm">{row.date}</td>
+                      <td className="py-3 px-3 text-xs sm:text-sm font-medium">{row.store}</td>
+                      <td className="py-3 px-3 text-xs sm:text-sm">{row.category}</td>
+                      <td className="py-3 px-3 text-xs sm:text-sm text-gray-500">{row.source}</td>
+                      <td className="py-3 px-3 text-xs sm:text-sm whitespace-normal min-w-[200px]">{row.details}</td>
+                    </tr>
+                  ))}
+                  {mistakeList.length === 0 && (
+                    <tr><td colSpan={5} className="text-center py-6 text-gray-500">No operational mistakes recorded.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* CUSTOMER REVIEWS TABLE */}
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
+            <h3 className="font-bold text-base sm:text-lg mb-2 text-blue-600">Recent Customer Reviews</h3>
+            <div className="overflow-y-auto overflow-x-auto max-h-[400px] mt-2 relative border border-gray-100 rounded-lg">
+              <table className="w-full text-sm text-left whitespace-nowrap">
+                <thead className="sticky top-0 bg-blue-50 z-10">
+                  <tr className="text-blue-800 border-b border-blue-100">
+                    <th className="py-3 px-3 font-semibold">Date</th>
+                    <th className="py-3 px-3 font-semibold">Store</th>
+                    <th className="py-3 px-3 font-semibold text-center">Rating</th>
+                    <th className="py-3 px-3 font-semibold">Platform</th>
+                    <th className="py-3 px-3 font-semibold w-1/2">Review Text</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reviewList.map((row, idx) => (
+                    <tr key={idx} className="border-b border-gray-50 text-gray-700 hover:bg-blue-50/50">
+                      <td className="py-3 px-3 text-xs sm:text-sm">{row.date}</td>
+                      <td className="py-3 px-3 text-xs sm:text-sm font-medium">{row.store}</td>
+                      <td className="py-3 px-3 text-center">
+                        <div className="flex items-center justify-center bg-gray-100 rounded-full px-2 py-1 w-fit mx-auto">
+                          <span className="font-bold text-xs mr-1">{row.rating}</span>
+                          <Star className={`w-3 h-3 ${row.rating >= 4 ? 'text-green-500 fill-green-500' : row.rating === 3 ? 'text-yellow-500 fill-yellow-500' : 'text-red-500 fill-red-500'}`} />
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 text-xs sm:text-sm text-gray-500">{row.source}</td>
+                      <td className="py-3 px-3 text-xs sm:text-sm whitespace-normal min-w-[300px] italic">"{row.text}"</td>
+                    </tr>
+                  ))}
+                  {reviewList.length === 0 && (
+                    <tr><td colSpan={5} className="text-center py-6 text-gray-500">No written reviews available.</td></tr>
                   )}
                 </tbody>
               </table>
