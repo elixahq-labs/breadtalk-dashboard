@@ -6,7 +6,6 @@ import { AreaChart, Area, PieChart, Pie, Cell, ComposedChart, Line, LineChart, X
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
 export default function DashboardClient({ fileNames }: { fileNames: string[] }) {
-  // 1. STATE
   const [rawData, setRawData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -15,7 +14,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // 2. TẢI DỮ LIỆU
+  // TẢI DATA TỪ TỆP TĨNH
   useEffect(() => {
     async function loadData() {
       let allData: any[] = [];
@@ -36,7 +35,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     if (fileNames.length > 0) loadData(); else setIsLoading(false);
   }, [fileNames]);
 
-  // 3. HÀM PHỤ TRỢ (Xóa khoảng trắng data thô)
+  // HÀM PHỤ TRỢ (Dọn sạch khoảng trắng)
   const clean = (val: any) => (val || '').toString().trim();
   const parseNum = (val: any) => parseFloat(clean(val).replace(/,/g, '')) || 0;
   const formatUS = (val: any) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseNum(val));
@@ -58,14 +57,14 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).getTime();
   };
 
-  // 4. DROPDOWN OPTIONS (Đã bổ sung Sort A-Z cho Slicer Group)
+  // DROPDOWN OPTIONS
   const stores = useMemo(() => Array.from(new Set(rawData.map(d => clean(d['Store-Name'])).filter(Boolean))), [rawData]);
   const groups = useMemo(() => {
     const uniqueGroups = Array.from(new Set(rawData.map(d => clean(d['Group'])).filter(Boolean)));
     return uniqueGroups.sort((a: string, b: string) => a.localeCompare(b));
   }, [rawData]);
 
-  // 5. XỬ LÝ DỮ LIỆU
+  // XỬ LÝ LÕI DỮ LIỆU
   const { netRevenue, totalBills, aov, discountRateTB, wasteQty, cancelRate, trendData, paymentData, topSalesByGroup, topWasteByGroup, agingTickets, pendingStats, gapData, filteredCount } = useMemo(() => {
     let rev = 0, totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0;
     const trendMap: Record<string, any> = {};
@@ -73,7 +72,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const gapMap: Record<string, any> = {};
     
     const ticketAgg: Record<string, any> = {};
-    const pStats = { buying: 0, process: 0, wasteTicket: 0, import: 0 };
+    const pStats = { buying: 0, process: 0, import: 0, missingWaste: 0 };
     const wasteTrackMap: Record<string, Record<string, boolean>> = {};
     const activeDates = new Set<string>();
     const activeStores = new Set<string>();
@@ -81,9 +80,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const salesMapByGroup: Record<string, Record<string, any>> = {};
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
     let fCount = 0;
-    
     const today = new Date('2026-08-12').getTime(); 
 
+    // Xác định Time Bounds
     let minTime = Infinity, maxTime = -Infinity;
     rawData.forEach(r => {
         const t = parseDataDate(r['Date']);
@@ -91,7 +90,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     });
     const startTime = parseInputDate(startDate) || minTime;
     const endTime = parseInputDate(endDate) || maxTime;
-    const openTime = startTime - 86400000;
+    const openTime = startTime - 86400000; // Chính xác lùi 1 ngày
 
     rawData.forEach(row => {
       const store = clean(row['Store-Name']);
@@ -109,33 +108,28 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const salesVal = parseNum(row['Sales']);
 
       if (!rowTime) return;
-
       if (storeFilter !== 'All' && store !== storeFilter) return;
       if (groupFilter !== 'All' && groupName !== groupFilter) return;
 
-      // --- LOGIC GAP ---
+      // --- 1. LOGIC BẢNG GAP ---
       if (sku) {
         const key = `${groupName}_${sku}`;
         if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open:0, process:0, import:0, export:0, sales:0, waste:0, stock:0, gap:0 };
-        const isStock = tType === 'Stock' || tInfo === 'Stock';
-        const isProcess = tType === 'Process' || tInfo === 'Process';
-        const isImport = tType === 'Import' || tInfo === 'Import';
-        const isExport = tType === 'Export' || tInfo === 'Export';
-        const isSales = tType === 'Sales' || tInfo === 'Sales';
-        const isWaste = tType === 'Waste' || tInfo === 'Waste';
-
-        if (rowTime === openTime && isStock) gapMap[key].open += qty;
-        if (rowTime === endTime && isStock) gapMap[key].stock += qty;
+        
+        // Quét Qty thuần túy theo đúng Ticket-Type
+        if (tType === 'Stock' && rowTime === openTime) gapMap[key].open += qty;
+        if (tType === 'Stock' && rowTime === endTime) gapMap[key].stock += qty;
+        
         if (rowTime >= startTime && rowTime <= endTime) {
-          if (isProcess) gapMap[key].process += qty;
-          if (isImport) gapMap[key].import += qty;
-          if (isExport) gapMap[key].export += qty;
-          if (isSales) gapMap[key].sales += qty;
-          if (isWaste) gapMap[key].waste += qty;
+          if (tType === 'Process') gapMap[key].process += qty;
+          if (tType === 'Import') gapMap[key].import += qty;
+          if (tType === 'Export') gapMap[key].export += qty;
+          if (tType === 'Sales') gapMap[key].sales += qty;
+          if (tType === 'Waste') gapMap[key].waste += qty;
         }
       }
 
-      // --- LOGIC BIỂU ĐỒ & KPI ---
+      // --- 2. LOGIC BIỂU ĐỒ & KPI ---
       if (rowTime >= startTime && rowTime <= endTime) {
         fCount++;
         activeDates.add(dateStr);
@@ -144,7 +138,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         const day = dateStr.split('-')[0] || 'N/A';
         if (!trendMap[day]) trendMap[day] = { day, revenue: 0, target: 0, discountAmt: 0, waste: 0, countBill: 0, cancel: 0 };
 
-        if (tType === 'Sales' || tInfo === 'Sales') {
+        if (tType === 'Sales') {
           rev += gross; totalDiscount += disc; trendMap[day].revenue += gross; trendMap[day].discountAmt += disc;
           if (sku) {
             if (!salesMapByGroup[groupName]) salesMapByGroup[groupName] = {};
@@ -152,11 +146,13 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             salesMapByGroup[groupName][sku].qty += qty;
           }
         }
-        
-        if (tType === 'Count-Bills' || tInfo === 'Count-Bills') { countBills += qty; trendMap[day].countBill += qty; }
-        if (tType === 'Cancel' || tInfo === 'Cancel') { cancelBills += qty; trendMap[day].cancel += qty; }
-        
-        if (tType === 'Waste' || tInfo === 'Waste') {
+        if (tType === 'Count-Bills') { countBills += qty; trendMap[day].countBill += qty; }
+        if (tType === 'Cancel') { cancelBills += qty; trendMap[day].cancel += qty; }
+        if (tType === 'Target') trendMap[day].target += salesVal;
+        if (tType === 'Payment') paymentMap[tInfo || 'Khác'] = (paymentMap[tInfo || 'Khác'] || 0) + salesVal;
+
+        // TÁCH RỜI LOẠI WASTE LẤY SỐ LƯỢNG SẢN PHẨM
+        if (tType === 'Waste') {
           waste += qty; trendMap[day].waste += qty;
           if (sku) {
             if (!wasteMapByGroup[groupName]) wasteMapByGroup[groupName] = {};
@@ -165,19 +161,17 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           }
         }
 
-        if (tType === 'Target') trendMap[day].target += salesVal;
-        if (tType === 'Payment') paymentMap[tInfo || 'Khác'] = (paymentMap[tInfo || 'Khác'] || 0) + salesVal;
-
+        // TÁCH RỜI LOẠI TICKET ĐỂ THEO DÕI VẬN HÀNH
         if (tType === 'Ticket') { 
-          if (['Buying-Ticket', 'Process-Ticket', 'Import-Ticket', 'Waste-Ticket'].includes(tInfo)) {
+          if (tInfo === 'Waste-Ticket' && qty > 0) {
+            if (!wasteTrackMap[store]) wasteTrackMap[store] = {};
+            wasteTrackMap[store][dateStr] = true;
+          }
+
+          if (['Buying-Ticket', 'Process-Ticket', 'Import-Ticket'].includes(tInfo)) {
             if (tInfo === 'Buying-Ticket') pStats.buying += qty;
             if (tInfo === 'Process-Ticket') pStats.process += qty;
             if (tInfo === 'Import-Ticket') pStats.import += qty;
-            if (tInfo === 'Waste-Ticket') {
-              pStats.wasteTicket += qty;
-              if (!wasteTrackMap[store]) wasteTrackMap[store] = {};
-              wasteTrackMap[store][dateStr] = true;
-            }
 
             const tKey = `${dateStr}_${store}_${tInfo}`;
             if (!ticketAgg[tKey]) {
@@ -196,14 +190,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ group, items: Object.values(salesMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ group, items: Object.values(wasteMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     
-    // Đã bổ sung Sort A-Z cho Bảng GAP tồn kho
+    // BẢNG GAP (Ẩn nhóm 'Khác' và sắp xếp A-Z)
     const gData = Object.values(gapMap).map(r => { 
       r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; 
       return r; 
     })
-    .filter(r => r.gap !== 0)
-    .sort((a, b) => a.group.localeCompare(b.group)); // Sắp xếp A-Z theo Group
+    .filter(r => r.gap !== 0 && r.group !== 'Khác') 
+    .sort((a, b) => a.group.localeCompare(b.group)); 
 
+    // CHỐT DANH SÁCH THIẾU WASTE-TICKET
     const allTickets = Object.values(ticketAgg).filter(t => t.qty > 0);
     const missingWasteList: any[] = [];
     
@@ -218,6 +213,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         }
       });
     });
+
+    pStats.missingWaste = missingWasteList.length;
 
     const finalAgingTickets = [...allTickets, ...missingWasteList].sort((a, b) => {
       if (a.isMissing && !b.isMissing) return -1;
@@ -244,7 +241,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   return (
     <div className="p-3 sm:p-6 bg-[#f8f9fa] min-h-screen font-sans text-gray-800">
       
-      {/* GLOBAL SLICERS */}
+      {/* SLICERS */}
       <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-50">
         <h1 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Operations Dashboard</h1>
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full">
@@ -269,7 +266,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         </div>
       </div>
 
-      {/* SCORECARDS RESPONSIVE */}
+      {/* SCORECARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs sm:text-sm text-gray-500 font-medium">Net revenue</p><p className="text-lg sm:text-2xl font-bold mt-1 truncate" title={formatUS(netRevenue)}>{formatUS(netRevenue)}</p></div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs sm:text-sm text-gray-500 font-medium">Count-Bills</p><p className="text-lg sm:text-2xl font-bold mt-1 truncate">{formatUS(totalBills)}</p></div>
@@ -311,14 +308,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                 </PieChart>
               </ResponsiveContainer>
             </div>
+            {/* Đã sửa cấu trúc Flexbox: Không dùng truncate, tự động break-words */}
             <div className="w-full md:w-1/2 flex flex-col justify-center gap-1.5 sm:gap-2">
               {paymentData.map((p, i) => (
-                <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-gray-50 pb-1.5 last:border-0">
-                  <div className="flex items-center flex-1 min-w-0 pr-2">
-                    <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mr-1.5 sm:mr-2 shrink-0" style={{ backgroundColor: p.color }}></span>
-                    <span className="text-gray-600 break-words leading-tight truncate" title={p.name}>{p.name}</span>
+                <div key={i} className="flex items-start justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-gray-50 pb-1.5 last:border-0">
+                  <div className="flex items-start flex-1 pr-2">
+                    <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mr-1.5 sm:mr-2 mt-[3px] shrink-0" style={{ backgroundColor: p.color }}></span>
+                    <span className="text-gray-600 leading-tight">{p.name}</span>
                   </div>
-                  <span className="font-bold text-gray-900 shrink-0 text-right">{formatUS(p.value)}</span>
+                  <span className="font-bold text-gray-900 shrink-0 text-right mt-[1px]">{formatUS(p.value)}</span>
                 </div>
               ))}
             </div>
@@ -421,7 +419,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Buying-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.buying)}</p></div>
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Process-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.process)}</p></div>
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Import-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.import)}</p></div>
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Waste-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.wasteTicket)}</p></div>
+          <div className="bg-red-50 p-3 rounded-lg border border-red-100"><p className="text-xs text-red-600 truncate font-semibold">Thiếu Waste-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-red-600">{formatUS(pendingStats.missingWaste)}</p></div>
         </div>
         <div className="overflow-y-auto overflow-x-auto max-h-[350px]">
           <table className="w-full text-sm text-left whitespace-nowrap">
