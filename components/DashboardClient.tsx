@@ -79,14 +79,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     });
   }, [rawData, storeFilter, groupFilter]);
 
-  // CORE DATA PROCESSING & PoP CALCULATION
+  // CORE DATA PROCESSING
   const { 
     netRevenue, totalBills, aov, discountRateTB, wasteQty, cancelRate, 
     trendData, paymentData, topSalesByGroup, topWasteByGroup, 
     agingTickets, pendingStats, gapData, filteredCount, prevStats,
     promoRev, promoDisc, promoQty, promoList, topPromoByQty, topPromoByRev,
-    avgRating, totalReviews, reviewList, ratingDist,
-    totalMistakes, mistakeList, mistakeCatDist
+    // REVIEWS & MISTAKES
+    avgMapsRating, avgCusRating, totalReviews, reviewList, 
+    mapsDistData, cusDistData, totalMistakes, mistakeList, mistakeCatDist
   } = useMemo(() => {
     
     let rev = 0, totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0;
@@ -110,12 +111,18 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
     const promoMap: Record<string, any> = {}; 
 
-    // Biến cho REVIEWS & MISTAKES
-    let sumRating = 0, countRating = 0, countMistakes = 0;
-    let prevSumRating = 0, prevCountRating = 0, prevCountMistakes = 0;
+    // REVIEWS & MISTAKES VARS
+    let mapsSumRating = 0, mapsCountRating = 0;
+    let cusSumRating = 0, cusCountRating = 0;
+    let countMistakes = 0;
+    let prevMapsSumRating = 0, prevMapsCountRating = 0;
+    let prevCusSumRating = 0, prevCusCountRating = 0;
+    let prevCountMistakes = 0;
+
     const rList: any[] = [];
     const mList: any[] = [];
-    const ratingCountMap: Record<string, number> = { '5 Stars': 0, '4 Stars': 0, '3 Stars': 0, '2 Stars': 0, '1 Star': 0 };
+    const mapsRatingCountMap: Record<string, number> = { '5 Stars': 0, '4 Stars': 0, '3 Stars': 0, '2 Stars': 0, '1 Star': 0 };
+    const cusRatingCountMap: Record<string, number> = { '5 Stars': 0, '4 Stars': 0, '3 Stars': 0, '2 Stars': 0, '1 Star': 0 };
     const mistakeCatMap: Record<string, number> = {};
     
     let fCount = 0;
@@ -157,24 +164,24 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const isPrevPeriod = rowTime && rowTime >= prevStartTime && rowTime <= prevEndTime;
       const isDateEmpty = !rowTime; 
 
+      // Định danh loại Review
+      const isMapsReview = sourceMistake.includes('Maps') || tType === 'Maps-Reviews';
+
       // --- 1. PREVIOUS PERIOD LOGIC (PoP) ---
       if (isPrevPeriod) {
         if (tType === 'Sales') { prevRev += gross; prevTotalDiscount += disc; }
         if (tType === 'Count-Bills') prevCountBills += qty;
         if (tType === 'Cancel') prevCancelBills += qty;
         if (tType === 'Waste') prevWaste += qty;
-        
         if (tType === 'Promotion') {
           prevMktPromoRev += gross;
           prevMktPromoDisc += disc;
           prevMktPromoQty += qty;
         }
-
-        // Bổ sung PoP cho Reviews & Mistakes
         if (tType === 'Cus-Reviews' || tType === 'Reviews') {
           if (qty > 0 && qty <= 5) {
-             prevSumRating += qty;
-             prevCountRating += 1;
+             if (isMapsReview) { prevMapsSumRating += qty; prevMapsCountRating++; }
+             else { prevCusSumRating += qty; prevCusCountRating++; }
           }
         }
         if (tType === 'Mistake') {
@@ -202,18 +209,27 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       // --- 3. CURRENT PERIOD LOGIC ---
       if (isCurrentPeriod || isDateEmpty) {
         
-        // REVIEWS & MISTAKES LOGIC (Hoạt động kể cả khi date trống)
+        // REVIEWS & MISTAKES LOGIC (Bao gồm cả khi date trống)
         if (tType === 'Cus-Reviews' || tType === 'Reviews') {
           if (qty > 0 && qty <= 5) {
-             sumRating += qty;
-             countRating += 1;
-             
              const rounded = Math.round(qty);
-             if (rounded === 5) ratingCountMap['5 Stars']++;
-             else if (rounded === 4) ratingCountMap['4 Stars']++;
-             else if (rounded === 3) ratingCountMap['3 Stars']++;
-             else if (rounded === 2) ratingCountMap['2 Stars']++;
-             else if (rounded === 1) ratingCountMap['1 Star']++;
+             if (isMapsReview) {
+               mapsSumRating += qty;
+               mapsCountRating++;
+               if (rounded === 5) mapsRatingCountMap['5 Stars']++;
+               else if (rounded === 4) mapsRatingCountMap['4 Stars']++;
+               else if (rounded === 3) mapsRatingCountMap['3 Stars']++;
+               else if (rounded === 2) mapsRatingCountMap['2 Stars']++;
+               else if (rounded === 1) mapsRatingCountMap['1 Star']++;
+             } else {
+               cusSumRating += qty;
+               cusCountRating++;
+               if (rounded === 5) cusRatingCountMap['5 Stars']++;
+               else if (rounded === 4) cusRatingCountMap['4 Stars']++;
+               else if (rounded === 3) cusRatingCountMap['3 Stars']++;
+               else if (rounded === 2) cusRatingCountMap['2 Stars']++;
+               else if (rounded === 1) cusRatingCountMap['1 Star']++;
+             }
           }
           if (tType === 'Reviews' && mistakeDetails) {
              rList.push({ date: dateStr || 'N/A', store: store, rating: qty, source: sourceMistake, text: mistakeDetails });
@@ -227,8 +243,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           mList.push({ date: dateStr || 'N/A', store: store, category: catName, source: sourceMistake, details: mistakeDetails, qty: qty });
         }
 
-        // TỪ ĐÂY CHỞ ĐI CHỈ XỬ LÝ NẾU CÓ NGÀY HỢP LỆ
-        if (!isCurrentPeriod) return; 
+        if (!isCurrentPeriod) return; // Các biểu đồ khác không lấy Date rỗng
 
         fCount++;
         activeDates.add(dateStr);
@@ -263,7 +278,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           const pName = tInfo || 'Others';
           mktPromoRev += gross; mktPromoDisc += disc; mktPromoQty += qty;
           trendMap[day].promoRevenue += gross;
-
           if (!promoMap[pName]) promoMap[pName] = { name: pName, qty: 0, sales: 0, discount: 0, gross: 0 };
           promoMap[pName].qty += qty; promoMap[pName].sales += salesVal; promoMap[pName].discount += disc; promoMap[pName].gross += gross;
         }
@@ -292,7 +306,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       }
     });
 
-    // CHỐT DATA OVERVIEW
     const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
     const pColors = ['#2563eb', '#f97316', '#10b981', '#fbbf24', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
@@ -323,15 +336,18 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       return b.aging - a.aging;
     });
 
-    // CHỐT DATA MARKETING
     const mktPromoList = Object.values(promoMap).sort((a, b) => b.gross - a.gross); 
     const mktTopByQty = [...mktPromoList].sort((a, b) => b.qty - a.qty).slice(0, 10);
     const mktTopByRev = [...mktPromoList].sort((a, b) => b.gross - a.gross).slice(0, 10);
 
-    // CHỐT DATA REVIEWS & MISTAKES
-    const aRating = countRating > 0 ? sumRating / countRating : 0;
+    // REVIEWS DATA CHỐT LẠI
+    const aMapsRating = mapsCountRating > 0 ? mapsSumRating / mapsCountRating : 0;
+    const aCusRating = cusCountRating > 0 ? cusSumRating / cusCountRating : 0;
+    const tReviews = mapsCountRating + cusCountRating;
+    
     const rColors = ['#10b981', '#84cc16', '#fbbf24', '#f97316', '#ef4444'];
-    const rDistData = Object.keys(ratingCountMap).map((k, i) => ({ name: k, value: ratingCountMap[k], color: rColors[i] })).filter(x => x.value > 0);
+    const mDistData = Object.keys(mapsRatingCountMap).map((k, i) => ({ name: k, value: mapsRatingCountMap[k], color: rColors[i] })).filter(x => x.value > 0);
+    const cDistData = Object.keys(cusRatingCountMap).map((k, i) => ({ name: k, value: cusRatingCountMap[k], color: rColors[i] })).filter(x => x.value > 0);
     const mCatDistData = Object.keys(mistakeCatMap).map(k => ({ name: k, qty: mistakeCatMap[k] })).sort((a, b) => b.qty - a.qty);
 
     const prevStatsResult = {
@@ -344,8 +360,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       promoRev: prevMktPromoRev,
       promoDisc: prevMktPromoDisc,
       promoQty: prevMktPromoQty,
-      prevAvgRating: prevCountRating > 0 ? prevSumRating / prevCountRating : 0,
-      prevTotalReviews: prevCountRating,
+      prevAvgMaps: prevMapsCountRating > 0 ? prevMapsSumRating / prevMapsCountRating : 0,
+      prevAvgCus: prevCusCountRating > 0 ? prevCusSumRating / prevCusCountRating : 0,
+      prevTotalReviews: prevMapsCountRating + prevCusCountRating,
       prevTotalMistakes: prevCountMistakes
     };
 
@@ -354,7 +371,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       wasteQty: waste, cancelRate: countBills > 0 ? (cancelBills / countBills) * 100 : 0,
       trendData: tData, paymentData: pData, topSalesByGroup: tSalesGroup, topWasteByGroup: tWasteGroup, agingTickets: finalAgingTickets, pendingStats: pStats, gapData: gData, filteredCount: fCount,
       promoRev: mktPromoRev, promoDisc: mktPromoDisc, promoQty: mktPromoQty, promoList: mktPromoList, topPromoByQty: mktTopByQty, topPromoByRev: mktTopByRev,
-      avgRating: aRating, totalReviews: countRating, reviewList: rList, ratingDist: rDistData,
+      avgMapsRating: aMapsRating, avgCusRating: aCusRating, totalReviews: tReviews, reviewList: rList, mapsDistData: mDistData, cusDistData: cDistData,
       totalMistakes: countMistakes, mistakeList: mList, mistakeCatDist: mCatDistData,
       prevStats: prevStatsResult 
     };
@@ -790,58 +807,89 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       ========================================= */}
       {activeTab === 'Reviews' && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
             <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Average Rating</p>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Maps Avg Rating</p>
               <div className="flex items-center justify-center">
-                <span className="text-4xl font-black text-gray-800 mr-2">{avgRating.toFixed(2)}</span>
-                <Star className="text-yellow-400 fill-yellow-400 w-8 h-8" />
-                <div className="ml-2 mb-1">{renderPoP(avgRating, prevStats.prevAvgRating, false)}</div>
+                <span className="text-3xl sm:text-4xl font-black text-gray-800 mr-1">{avgMapsRating.toFixed(2)}</span>
+                <Star className="text-yellow-400 fill-yellow-400 w-6 h-6 sm:w-8 sm:h-8" />
+                <div className="mb-1">{renderPoP(avgMapsRating, prevStats.prevAvgMaps, false)}</div>
+              </div>
+            </div>
+            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Survey Avg Rating</p>
+              <div className="flex items-center justify-center">
+                <span className="text-3xl sm:text-4xl font-black text-gray-800 mr-1">{avgCusRating.toFixed(2)}</span>
+                <Star className="text-yellow-400 fill-yellow-400 w-6 h-6 sm:w-8 sm:h-8" />
+                <div className="mb-1">{renderPoP(avgCusRating, prevStats.prevAvgCus, false)}</div>
               </div>
             </div>
             <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
               <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Total Reviews</p>
               <div className="flex items-center justify-center">
-                <span className="text-4xl font-black text-blue-600">{formatUS(totalReviews)}</span>
-                <div className="ml-2 mb-1">{renderPoP(totalReviews, prevStats.prevTotalReviews, false)}</div>
+                <span className="text-3xl sm:text-4xl font-black text-blue-600">{formatUS(totalReviews)}</span>
+                <div className="mb-1">{renderPoP(totalReviews, prevStats.prevTotalReviews, false)}</div>
               </div>
             </div>
             <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
               <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Operational Mistakes</p>
               <div className="flex items-center justify-center">
-                <span className="text-4xl font-black text-red-500 mr-2">{formatUS(totalMistakes)}</span>
-                <AlertCircle className="text-red-500 w-7 h-7" />
-                <div className="ml-2 mb-1">{renderPoP(totalMistakes, prevStats.prevTotalMistakes, true)}</div>
+                <span className="text-3xl sm:text-4xl font-black text-red-500 mr-1">{formatUS(totalMistakes)}</span>
+                <AlertCircle className="text-red-500 w-6 h-6 sm:w-7 sm:h-7" />
+                <div className="mb-1">{renderPoP(totalMistakes, prevStats.prevTotalMistakes, true)}</div>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-            {/* RATING DISTRIBUTION PIE CHART */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 items-stretch">
+            {/* MAPS RATING DISTRIBUTION */}
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Rating Distribution</h3>
-              <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6">
-                 <div className="h-48 sm:h-64 w-full md:w-1/2 shrink-0">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Maps Rating Dist.</h3>
+              <div className="flex-1 flex flex-col items-center justify-center gap-2">
+                 <div className="h-40 sm:h-48 w-full shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={ratingDist} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="value">
-                        {ratingDist.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                      <Pie data={mapsDistData} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="value">
+                        {mapsDistData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                       </Pie>
                       <Tooltip formatter={(value: any) => formatUS(value)} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="w-full md:w-1/2 flex flex-col justify-center gap-2 sm:gap-3">
-                  {ratingDist.map((p, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs sm:text-sm w-full border-b border-gray-50 pb-2 last:border-0">
-                      <div className="flex items-center flex-1">
-                        <span className="w-3 h-3 rounded-full mr-2 shrink-0" style={{ backgroundColor: p.color }}></span>
-                        <span className="text-gray-600 font-medium">{p.name}</span>
-                      </div>
+                <div className="w-full flex flex-col gap-1.5 px-2">
+                  {mapsDistData.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs w-full">
+                      <div className="flex items-center"><span className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: p.color }}></span><span className="text-gray-600">{p.name}</span></div>
                       <span className="font-bold text-gray-900">{formatUS(p.value)}</span>
                     </div>
                   ))}
-                  {ratingDist.length === 0 && <p className="text-sm text-gray-500 text-center w-full">No rating data.</p>}
+                  {mapsDistData.length === 0 && <p className="text-xs text-gray-500 text-center w-full">No data</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* SURVEY RATING DISTRIBUTION */}
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Survey Rating Dist.</h3>
+              <div className="flex-1 flex flex-col items-center justify-center gap-2">
+                 <div className="h-40 sm:h-48 w-full shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={cusDistData} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="value">
+                        {cusDistData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip formatter={(value: any) => formatUS(value)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-full flex flex-col gap-1.5 px-2">
+                  {cusDistData.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs w-full">
+                      <div className="flex items-center"><span className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: p.color }}></span><span className="text-gray-600">{p.name}</span></div>
+                      <span className="font-bold text-gray-900">{formatUS(p.value)}</span>
+                    </div>
+                  ))}
+                  {cusDistData.length === 0 && <p className="text-xs text-gray-500 text-center w-full">No data</p>}
                 </div>
               </div>
             </div>
@@ -849,15 +897,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             {/* MISTAKES BY CATEGORY BAR CHART */}
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
               <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Mistakes by Category</h3>
-              <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
+              <div className="flex-1 w-full relative min-h-[250px]">
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mistakeCatDist} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <BarChart data={mistakeCatDist} layout="vertical" margin={{ top: 5, right: 20, left: 5, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                      <YAxis dataKey="name" type="category" width={110} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
                       <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#fef2f2'}} />
-                      <Bar dataKey="qty" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={24} name="Count" />
+                      <Bar dataKey="qty" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={20} name="Count" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
