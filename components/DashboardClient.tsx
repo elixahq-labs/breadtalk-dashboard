@@ -36,7 +36,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     if (fileNames.length > 0) loadData(); else setIsLoading(false);
   }, [fileNames]);
 
-  // 3. HÀM PHỤ TRỢ (QUAN TRỌNG: Xóa khoảng trắng data thô)
+  // 3. HÀM PHỤ TRỢ (Xóa khoảng trắng data thô)
   const clean = (val: any) => (val || '').toString().trim();
   const parseNum = (val: any) => parseFloat(clean(val).replace(/,/g, '')) || 0;
   const formatUS = (val: any) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseNum(val));
@@ -48,7 +48,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const parts = cleaned.split('-');
     if (parts.length !== 3) return null;
     let y = parseInt(parts[2], 10);
-    if (y < 100) y += 2000; // Xử lý nếu định dạng là 26 thay vì 2026
+    if (y < 100) y += 2000;
     return new Date(y, months[parts[1]], parseInt(parts[0], 10)).getTime();
   };
   
@@ -62,20 +62,28 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   const stores = useMemo(() => Array.from(new Set(rawData.map(d => clean(d['Store-Name'])).filter(Boolean))), [rawData]);
   const groups = useMemo(() => Array.from(new Set(rawData.map(d => clean(d['Group'])).filter(Boolean))), [rawData]);
 
-  // 5. XỬ LÝ DỮ LIỆU CHÍNH (Xử lý 1 lần cho TẤT CẢ biểu đồ và GAP để tối ưu tốc độ)
+  // 5. XỬ LÝ DỮ LIỆU
   const { netRevenue, totalBills, aov, discountRateTB, wasteQty, cancelRate, trendData, paymentData, topSalesByGroup, topWasteByGroup, agingTickets, pendingStats, gapData, filteredCount } = useMemo(() => {
     let rev = 0, totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0;
     const trendMap: Record<string, any> = {};
     const paymentMap: Record<string, number> = {};
     const gapMap: Record<string, any> = {};
-    const tickets: any[] = [];
-    const pStats = { buying: 0, process: 0, export: 0, import: 0 };
+    
+    // Khai báo cho Phiếu treo
+    const ticketAgg: Record<string, any> = {};
+    const pStats = { buying: 0, process: 0, wasteTicket: 0, import: 0 };
+    const wasteTrackMap: Record<string, Record<string, boolean>> = {}; // Theo dõi CH nào có Waste-Ticket ngày nào
+    const activeDates = new Set<string>();
+    const activeStores = new Set<string>();
+
     const salesMapByGroup: Record<string, Record<string, any>> = {};
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
     let fCount = 0;
-    const today = new Date('2026-08-09').getTime();
+    
+    // Giả định ngày hiện tại theo data
+    const today = new Date('2026-08-12').getTime(); 
 
-    // Xác định mốc thời gian (Min/Max nếu không chọn filter)
+    // Xác định mốc thời gian (Min/Max)
     let minTime = Infinity, maxTime = -Infinity;
     rawData.forEach(r => {
         const t = parseDataDate(r['Date']);
@@ -83,9 +91,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     });
     const startTime = parseInputDate(startDate) || minTime;
     const endTime = parseInputDate(endDate) || maxTime;
-    const openTime = startTime - 86400000; // Chính xác lùi lại 1 ngày (24h)
+    const openTime = startTime - 86400000;
 
-    // QUÉT DỮ LIỆU
     rawData.forEach(row => {
       const store = clean(row['Store-Name']);
       const groupName = clean(row['Group']) || 'Khác';
@@ -107,11 +114,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       if (storeFilter !== 'All' && store !== storeFilter) return;
       if (groupFilter !== 'All' && groupName !== groupFilter) return;
 
-      // --- LOGIC BẢNG GAP (Tính bất chấp khoảng ngày lọc) ---
+      // --- LOGIC GAP ---
       if (sku) {
         const key = `${groupName}_${sku}`;
         if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open:0, process:0, import:0, export:0, sales:0, waste:0, stock:0, gap:0 };
-
         const isStock = tType === 'Stock' || tInfo === 'Stock';
         const isProcess = tType === 'Process' || tInfo === 'Process';
         const isImport = tType === 'Import' || tInfo === 'Import';
@@ -119,13 +125,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         const isSales = tType === 'Sales' || tInfo === 'Sales';
         const isWaste = tType === 'Waste' || tInfo === 'Waste';
 
-        // Open = Stock của ngày (StartDate - 1)
         if (rowTime === openTime && isStock) gapMap[key].open += qty;
-        
-        // Stock = Stock của ngày EndDate
         if (rowTime === endTime && isStock) gapMap[key].stock += qty;
-
-        // Các chỉ số phát sinh trong khoảng thời gian [StartDate, EndDate]
         if (rowTime >= startTime && rowTime <= endTime) {
           if (isProcess) gapMap[key].process += qty;
           if (isImport) gapMap[key].import += qty;
@@ -135,15 +136,17 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         }
       }
 
-      // --- LOGIC BIỂU ĐỒ & KPI (Chỉ tính những dòng nằm trong khoảng ngày lọc) ---
+      // --- LOGIC BIỂU ĐỒ & KPI ---
       if (rowTime >= startTime && rowTime <= endTime) {
         fCount++;
+        activeDates.add(dateStr);
+        activeStores.add(store);
+
         const day = dateStr.split('-')[0] || 'N/A';
         if (!trendMap[day]) trendMap[day] = { day, revenue: 0, target: 0, discountAmt: 0, waste: 0, countBill: 0, cancel: 0 };
 
         if (tType === 'Sales' || tInfo === 'Sales') {
-          rev += gross; totalDiscount += disc;
-          trendMap[day].revenue += gross; trendMap[day].discountAmt += disc;
+          rev += gross; totalDiscount += disc; trendMap[day].revenue += gross; trendMap[day].discountAmt += disc;
           if (sku) {
             if (!salesMapByGroup[groupName]) salesMapByGroup[groupName] = {};
             if (!salesMapByGroup[groupName][sku]) salesMapByGroup[groupName][sku] = { sku, name, qty: 0 };
@@ -166,35 +169,67 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         if (tType === 'Target') trendMap[day].target += salesVal;
         if (tType === 'Payment') paymentMap[tInfo || 'Khác'] = (paymentMap[tInfo || 'Khác'] || 0) + salesVal;
 
-        if (['Ticket', 'Process', 'Import', 'Export'].includes(tType) || tType.includes('Ticket')) { 
-          if (tInfo === 'Buying-Ticket') pStats.buying += qty;
-          if (tInfo === 'Process-Ticket') pStats.process += qty;
-          if (tInfo === 'Export-Ticket') pStats.export += qty;
-          if (tInfo === 'Import-Ticket') pStats.import += qty;
+        // --- PHIẾU TREO THEO TICKET-TYPE & TICKET-INFO ---
+        if (tType === 'Ticket') { 
+          if (['Buying-Ticket', 'Process-Ticket', 'Import-Ticket', 'Waste-Ticket'].includes(tInfo)) {
+            
+            if (tInfo === 'Buying-Ticket') pStats.buying += qty;
+            if (tInfo === 'Process-Ticket') pStats.process += qty;
+            if (tInfo === 'Import-Ticket') pStats.import += qty;
+            if (tInfo === 'Waste-Ticket') {
+              pStats.wasteTicket += qty;
+              if (!wasteTrackMap[store]) wasteTrackMap[store] = {};
+              wasteTrackMap[store][dateStr] = true; // Ghi nhận CH này đã có phiếu Waste ngày này
+            }
 
-          if (['Buying-Ticket', 'Process-Ticket', 'Export-Ticket', 'Import-Ticket'].includes(tInfo)) {
-            const agingDays = Math.floor((today - rowTime) / 86400000) || 1;
-            tickets.push({ date: dateStr, type: tInfo, qty, aging: agingDays > 0 ? agingDays : 1 });
+            // Gom nhóm phiếu treo theo Ngày + Cửa hàng + Loại phiếu
+            const tKey = `${dateStr}_${store}_${tInfo}`;
+            if (!ticketAgg[tKey]) {
+              const agingDays = Math.floor((today - rowTime) / 86400000);
+              ticketAgg[tKey] = { date: dateStr, store, type: tInfo, qty: 0, aging: agingDays > 0 ? agingDays : 0 };
+            }
+            ticketAgg[tKey].qty += qty;
           }
         }
       }
     });
 
+    // Ép kiểu mảng và sắp xếp
     const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
     const pColors = ['#2563eb', '#f97316', '#10b981', '#fbbf24', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
     const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ group, items: Object.values(salesMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ group, items: Object.values(wasteMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
+    const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0);
+
+    // --- TÍNH PHIẾU TREO & THIẾU WASTE ---
+    const allTickets = Object.values(ticketAgg).filter(t => t.qty > 0);
+    const missingWasteList: any[] = [];
     
-    const gData = Object.values(gapMap).map(r => { 
-      r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; 
-      return r; 
-    }).filter(r => r.gap !== 0);
+    // Quét tìm cửa hàng nào THIẾU Waste-Ticket
+    activeStores.forEach(st => {
+      activeDates.forEach(dt => {
+        if (!wasteTrackMap[st] || !wasteTrackMap[st][dt]) {
+          const tDate = parseDataDate(dt) || today;
+          const agingDays = Math.floor((today - tDate) / 86400000);
+          missingWasteList.push({
+            date: dt, store: st, type: '⚠️ THIẾU WASTE-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true
+          });
+        }
+      });
+    });
+
+    // Nối mảng và đưa các dòng Lỗi (Missing) lên đầu
+    const finalAgingTickets = [...allTickets, ...missingWasteList].sort((a, b) => {
+      if (a.isMissing && !b.isMissing) return -1;
+      if (!a.isMissing && b.isMissing) return 1;
+      return b.aging - a.aging; // Treo lâu đẩy lên trên
+    });
 
     return {
       netRevenue: rev, totalBills: countBills, aov: countBills > 0 ? rev / countBills : 0, discountRateTB: rev > 0 ? (totalDiscount / rev) * 100 : 0,
       wasteQty: waste, cancelRate: countBills > 0 ? (cancelBills / countBills) * 100 : 0,
-      trendData: tData, paymentData: pData, topSalesByGroup: tSalesGroup, topWasteByGroup: tWasteGroup, agingTickets: tickets, pendingStats: pStats, gapData: gData, filteredCount: fCount
+      trendData: tData, paymentData: pData, topSalesByGroup: tSalesGroup, topWasteByGroup: tWasteGroup, agingTickets: finalAgingTickets, pendingStats: pStats, gapData: gData, filteredCount: fCount
     };
   }, [rawData, storeFilter, groupFilter, startDate, endDate]);
 
@@ -247,8 +282,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
       {/* CHARTS TẦNG 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-        
-        {/* Doanh thu */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
           <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Doanh thu theo ngày</h3>
           <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
@@ -266,7 +299,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           </div>
         </div>
 
-        {/* Thanh toán (Đã fix UI không bao giờ che mất số) */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
           <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Cơ cấu thanh toán</h3>
           <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6">
@@ -280,7 +312,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            
             <div className="w-full md:w-1/2 flex flex-col justify-center gap-1.5 sm:gap-2">
               {paymentData.map((p, i) => (
                 <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-gray-50 pb-1.5 last:border-0">
@@ -384,32 +415,45 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         </div>
       </div>
 
-      {/* PHIẾU TREO */}
+      {/* PHIẾU TREO (ĐÃ NÂNG CẤP) */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-4">Đối soát vận hành — Phiếu treo</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Buying-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.buying)}</p></div>
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Process-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.process)}</p></div>
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Export-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.export)}</p></div>
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Import-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.import)}</p></div>
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Waste-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.wasteTicket)}</p></div>
         </div>
-        <div className="overflow-y-auto overflow-x-auto max-h-[300px]">
+        <div className="overflow-y-auto overflow-x-auto max-h-[350px]">
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="sticky top-0 bg-white shadow-sm z-10">
               <tr className="text-gray-500 border-b border-gray-200">
-                <th className="pb-3 px-2 font-medium">Ngày</th><th className="pb-3 px-2 font-medium">Loại phiếu</th><th className="pb-3 px-2 font-medium text-center">Qty</th><th className="pb-3 px-2 font-medium text-center">Số ngày treo</th>
+                <th className="pb-3 px-2 font-medium">Cửa hàng</th><th className="pb-3 px-2 font-medium">Ngày</th><th className="pb-3 px-2 font-medium">Loại phiếu</th><th className="pb-3 px-2 font-medium text-center">Qty</th><th className="pb-3 px-2 font-medium text-center">Số ngày treo</th>
               </tr>
             </thead>
             <tbody>
               {agingTickets.map((ticket, idx) => {
-                const isCritical = ticket.aging > 5;
+                const isCritical = ticket.aging > 5 && !ticket.isMissing;
+                
+                let rowClass = 'text-gray-700 hover:bg-gray-50';
+                if (ticket.isMissing) rowClass = 'bg-red-100 text-red-800 font-bold border-l-4 border-l-red-600';
+                else if (isCritical) rowClass = 'bg-orange-50 text-orange-700 font-medium';
+
                 return (
-                  <tr key={idx} className={`border-b border-gray-100 hover:bg-gray-50 ${isCritical ? 'bg-red-50 text-red-700 font-medium' : 'text-gray-700'}`}>
-                    <td className="py-2 px-2 text-xs sm:text-sm">{ticket.date}</td><td className="py-2 px-2 text-xs sm:text-sm">{ticket.type}</td><td className="py-2 px-2 text-center text-xs sm:text-sm">{formatUS(ticket.qty)}</td>
-                    <td className="py-2 px-2 text-center flex items-center justify-center gap-1 text-xs sm:text-sm">{formatUS(ticket.aging)} {isCritical && <AlertTriangle size={14} className="text-red-500" />}</td>
+                  <tr key={idx} className={`border-b border-gray-100 ${rowClass}`}>
+                    <td className="py-2 px-2 text-xs sm:text-sm">{ticket.store}</td>
+                    <td className="py-2 px-2 text-xs sm:text-sm">{ticket.date}</td>
+                    <td className="py-2 px-2 text-xs sm:text-sm">{ticket.type}</td>
+                    <td className="py-2 px-2 text-center text-xs sm:text-sm">{ticket.qty === 'N/A' ? '-' : formatUS(ticket.qty)}</td>
+                    <td className="py-2 px-2 text-center flex items-center justify-center gap-1 text-xs sm:text-sm">
+                      {formatUS(ticket.aging)} {(isCritical || ticket.isMissing) && <AlertTriangle size={14} className={ticket.isMissing ? "text-red-600" : "text-orange-500"} />}
+                    </td>
                   </tr>
                 );
               })}
+              {agingTickets.length === 0 && (
+                <tr><td colSpan={5} className="text-center py-4 text-gray-500">Tuyệt vời! Không có phiếu nào đang treo hoặc thiếu sót.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
