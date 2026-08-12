@@ -35,7 +35,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     if (fileNames.length > 0) loadData(); else setIsLoading(false);
   }, [fileNames]);
 
-  // HÀM PHỤ TRỢ (Dọn sạch khoảng trắng)
+  // HÀM PHỤ TRỢ
   const clean = (val: any) => (val || '').toString().trim();
   const parseNum = (val: any) => parseFloat(clean(val).replace(/,/g, '')) || 0;
   const formatUS = (val: any) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseNum(val));
@@ -64,39 +64,62 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     return uniqueGroups.sort((a: string, b: string) => a.localeCompare(b));
   }, [rawData]);
 
-  // XỬ LÝ LÕI DỮ LIỆU
-  const { netRevenue, totalBills, aov, discountRateTB, wasteQty, cancelRate, trendData, paymentData, topSalesByGroup, topWasteByGroup, agingTickets, pendingStats, gapData, filteredCount } = useMemo(() => {
+  // TIỀN LỌC DỮ LIỆU (Chỉ lọc Cửa hàng & Nhóm)
+  const baseFilteredData = useMemo(() => {
+    return rawData.filter(row => {
+      const store = clean(row['Store-Name']);
+      const groupName = clean(row['Group']) || 'Khác';
+      if (storeFilter !== 'All' && store !== storeFilter) return false;
+      if (groupFilter !== 'All' && groupName !== groupFilter) return false;
+      return true;
+    });
+  }, [rawData, storeFilter, groupFilter]);
+
+  // XỬ LÝ LÕI DỮ LIỆU & TÍNH TOÁN SO SÁNH CHU KỲ (PoP)
+  const { 
+    netRevenue, totalBills, aov, discountRateTB, wasteQty, cancelRate, 
+    trendData, paymentData, topSalesByGroup, topWasteByGroup, 
+    agingTickets, pendingStats, gapData, filteredCount, prevStats 
+  } = useMemo(() => {
+    
+    // Khai báo biến kỳ Hiện tại
     let rev = 0, totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0;
+    // Khai báo biến kỳ Trước
+    let prevRev = 0, prevTotalDiscount = 0, prevCountBills = 0, prevCancelBills = 0, prevWaste = 0;
+
     const trendMap: Record<string, any> = {};
     const paymentMap: Record<string, number> = {};
     const gapMap: Record<string, any> = {};
-    
     const ticketAgg: Record<string, any> = {};
-    // Thêm missingStock vào bộ đếm
     const pStats = { buying: 0, process: 0, import: 0, missingWaste: 0, missingStock: 0 };
     
-    // Theo dõi song song cả Waste-Ticket và Stock-Ticket
     const wasteTrackMap: Record<string, Record<string, boolean>> = {};
     const stockTrackMap: Record<string, Record<string, boolean>> = {};
     const activeDates = new Set<string>();
     const activeStores = new Set<string>();
-
     const salesMapByGroup: Record<string, Record<string, any>> = {};
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
+    
     let fCount = 0;
     const today = new Date('2026-08-12').getTime(); 
 
-    // Xác định Time Bounds
+    // Xác định mốc thời gian Tự động
     let minTime = Infinity, maxTime = -Infinity;
     rawData.forEach(r => {
         const t = parseDataDate(r['Date']);
         if (t) { if (t < minTime) minTime = t; if (t > maxTime) maxTime = t; }
     });
+    
     const startTime = parseInputDate(startDate) || minTime;
     const endTime = parseInputDate(endDate) || maxTime;
-    const openTime = startTime - 86400000; // Chính xác lùi 1 ngày
+    
+    // TÍNH TOÁN KHOẢNG THỜI GIAN KỲ TRƯỚC (PoP Logic)
+    const diff = endTime - startTime; 
+    const prevEndTime = startTime - 86400000; // Lùi 1 ngày
+    const prevStartTime = prevEndTime - diff;
+    const openTime = startTime - 86400000; // Cho số Open của bảng GAP
 
-    rawData.forEach(row => {
+    baseFilteredData.forEach(row => {
       const store = clean(row['Store-Name']);
       const groupName = clean(row['Group']) || 'Khác';
       const sku = clean(row['SKU']);
@@ -112,10 +135,19 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const salesVal = parseNum(row['Sales']);
 
       if (!rowTime) return;
-      if (storeFilter !== 'All' && store !== storeFilter) return;
-      if (groupFilter !== 'All' && groupName !== groupFilter) return;
 
-      // --- 1. LOGIC BẢNG GAP ---
+      const isCurrentPeriod = rowTime >= startTime && rowTime <= endTime;
+      const isPrevPeriod = rowTime >= prevStartTime && rowTime <= prevEndTime;
+
+      // --- 1. GHI NHẬN KỲ TRƯỚC (Previous Period) ---
+      if (isPrevPeriod) {
+        if (tType === 'Sales') { prevRev += gross; prevTotalDiscount += disc; }
+        if (tType === 'Count-Bills') prevCountBills += qty;
+        if (tType === 'Cancel') prevCancelBills += qty;
+        if (tType === 'Waste') prevWaste += qty;
+      }
+
+      // --- 2. BẢNG GAP TỒN KHO ---
       if (sku) {
         const key = `${groupName}_${sku}`;
         if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open:0, process:0, import:0, export:0, sales:0, waste:0, stock:0, gap:0 };
@@ -123,7 +155,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         if (tType === 'Stock' && rowTime === openTime) gapMap[key].open += qty;
         if (tType === 'Stock' && rowTime === endTime) gapMap[key].stock += qty;
         
-        if (rowTime >= startTime && rowTime <= endTime) {
+        if (isCurrentPeriod) {
           if (tType === 'Process') gapMap[key].process += qty;
           if (tType === 'Import') gapMap[key].import += qty;
           if (tType === 'Export') gapMap[key].export += qty;
@@ -132,8 +164,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         }
       }
 
-      // --- 2. LOGIC BIỂU ĐỒ & KPI ---
-      if (rowTime >= startTime && rowTime <= endTime) {
+      // --- 3. GHI NHẬN KỲ HIỆN TẠI (Current Period) ---
+      if (isCurrentPeriod) {
         fCount++;
         activeDates.add(dateStr);
         activeStores.add(store);
@@ -163,14 +195,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           }
         }
 
-        // --- THEO DÕI VẬN HÀNH PHIẾU TREO / THIẾU TICKET ---
         if (tType === 'Ticket') { 
-          // Đánh dấu đã nhận Waste-Ticket
           if (tInfo === 'Waste-Ticket' && qty > 0) {
             if (!wasteTrackMap[store]) wasteTrackMap[store] = {};
             wasteTrackMap[store][dateStr] = true;
           }
-          // Đánh dấu đã nhận Stock-Ticket
           if (tInfo === 'Stock-Ticket' && qty > 0) {
             if (!stockTrackMap[store]) stockTrackMap[store] = {};
             stockTrackMap[store][dateStr] = true;
@@ -192,60 +221,77 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       }
     });
 
+    // Ép kiểu các bảng phụ trợ
     const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
     const pColors = ['#2563eb', '#f97316', '#10b981', '#fbbf24', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
     const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ group, items: Object.values(salesMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ group, items: Object.values(wasteMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
-    
-    // BẢNG GAP (Ẩn nhóm 'Khác' và sắp xếp A-Z)
-    const gData = Object.values(gapMap).map(r => { 
-      r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; 
-      return r; 
-    })
-    .filter(r => r.gap !== 0 && r.group !== 'Khác') 
-    .sort((a, b) => a.group.localeCompare(b.group)); 
+    const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Khác').sort((a, b) => a.group.localeCompare(b.group)); 
 
-    // --- CHỐT DANH SÁCH THIẾU WASTE-TICKET & STOCK-TICKET ---
+    // Soạn Phiếu Treo
     const allTickets = Object.values(ticketAgg).filter(t => t.qty > 0);
     const missingTicketsList: any[] = [];
-    
     activeStores.forEach(st => {
       activeDates.forEach(dt => {
         const tDate = parseDataDate(dt) || today;
         const agingDays = Math.floor((today - tDate) / 86400000);
-        
-        // Kiểm tra thiếu Waste-Ticket
         if (!wasteTrackMap[st] || !wasteTrackMap[st][dt]) {
-          missingTicketsList.push({
-            date: dt, store: st, type: 'THIẾU WASTE-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true
-          });
+          missingTicketsList.push({ date: dt, store: st, type: 'THIẾU WASTE-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true });
           pStats.missingWaste++;
         }
-        
-        // Kiểm tra thiếu Stock-Ticket
         if (!stockTrackMap[st] || !stockTrackMap[st][dt]) {
-          missingTicketsList.push({
-            date: dt, store: st, type: 'THIẾU STOCK-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true
-          });
+          missingTicketsList.push({ date: dt, store: st, type: 'THIẾU STOCK-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true });
           pStats.missingStock++;
         }
       });
     });
 
     const finalAgingTickets = [...allTickets, ...missingTicketsList].sort((a, b) => {
-      // Ưu tiên hiện các phiếu thiếu lên trên cùng
       if (a.isMissing && !b.isMissing) return -1;
       if (!a.isMissing && b.isMissing) return 1;
       return b.aging - a.aging;
     });
 
+    // CHỐT KPI KỲ TRƯỚC (Dùng cho render)
+    const prevStatsResult = {
+      netRevenue: prevRev,
+      totalBills: prevCountBills,
+      aov: prevCountBills > 0 ? prevRev / prevCountBills : 0,
+      discountRateTB: prevRev > 0 ? (prevTotalDiscount / prevRev) * 100 : 0,
+      wasteQty: prevWaste,
+      cancelRate: prevCountBills > 0 ? (prevCancelBills / prevCountBills) * 100 : 0
+    };
+
     return {
       netRevenue: rev, totalBills: countBills, aov: countBills > 0 ? rev / countBills : 0, discountRateTB: rev > 0 ? (totalDiscount / rev) * 100 : 0,
       wasteQty: waste, cancelRate: countBills > 0 ? (cancelBills / countBills) * 100 : 0,
-      trendData: tData, paymentData: pData, topSalesByGroup: tSalesGroup, topWasteByGroup: tWasteGroup, agingTickets: finalAgingTickets, pendingStats: pStats, gapData: gData, filteredCount: fCount
+      trendData: tData, paymentData: pData, topSalesByGroup: tSalesGroup, topWasteByGroup: tWasteGroup, agingTickets: finalAgingTickets, pendingStats: pStats, gapData: gData, filteredCount: fCount,
+      prevStats: prevStatsResult // Xuất data kỳ trước
     };
-  }, [rawData, storeFilter, groupFilter, startDate, endDate]);
+  }, [baseFilteredData, startDate, endDate, rawData]);
+
+  // HÀM RENDER CHỈ SỐ SO SÁNH (PoP)
+  const renderPoP = (current: number, prev: number, inverseColor: boolean = false) => {
+    if (!prev || prev === 0) return <span className="text-[10px] sm:text-xs text-gray-400 ml-2 font-normal">--</span>; // Không có dữ liệu kỳ trước
+    if (current === prev) return null; // Bằng nhau thì bỏ trống
+    
+    const changePercent = ((current - prev) / prev) * 100;
+    const isPositive = changePercent > 0;
+    
+    // Nếu inverseColor=true (Dùng cho Waste, Cancel, Discount): Tăng là Đỏ, Giảm là Xanh
+    const colorClass = isPositive 
+      ? (inverseColor ? 'text-red-500' : 'text-green-500') 
+      : (inverseColor ? 'text-green-500' : 'text-red-500');
+      
+    const arrow = isPositive ? '▲' : '▼';
+    
+    return (
+      <span className={`text-[10px] sm:text-xs font-semibold ml-2 ${colorClass}`}>
+        {arrow} {Math.abs(changePercent).toFixed(1)}%
+      </span>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -284,14 +330,34 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         </div>
       </div>
 
-      {/* SCORECARDS */}
+      {/* SCORECARDS (Đã tích hợp So Sánh Chu Kỳ) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs sm:text-sm text-gray-500 font-medium">Net revenue</p><p className="text-lg sm:text-2xl font-bold mt-1 truncate" title={formatUS(netRevenue)}>{formatUS(netRevenue)}</p></div>
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs sm:text-sm text-gray-500 font-medium">Count-Bills</p><p className="text-lg sm:text-2xl font-bold mt-1 truncate">{formatUS(totalBills)}</p></div>
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs sm:text-sm text-gray-500 font-medium">AOV</p><p className="text-lg sm:text-2xl font-bold mt-1 truncate">{formatUS(aov)}</p></div>
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs sm:text-sm text-gray-500 font-medium">Discount rate TB</p><p className="text-lg sm:text-2xl font-bold mt-1 truncate">{formatUS(discountRateTB)}%</p></div>
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs sm:text-sm text-gray-500 font-medium">Waste Qty</p><p className="text-lg sm:text-2xl font-bold mt-1 text-red-600 truncate">{formatUS(wasteQty)}</p></div>
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs sm:text-sm text-gray-500 font-medium">Cancel rate</p><p className="text-lg sm:text-2xl font-bold mt-1 truncate">{formatUS(cancelRate)}%</p></div>
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+          <p className="text-xs sm:text-sm text-gray-500 font-medium">Net revenue</p>
+          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate" title={formatUS(netRevenue)}>{formatUS(netRevenue)}</p>{renderPoP(netRevenue, prevStats.netRevenue, false)}</div>
+        </div>
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+          <p className="text-xs sm:text-sm text-gray-500 font-medium">Count-Bills</p>
+          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(totalBills)}</p>{renderPoP(totalBills, prevStats.totalBills, false)}</div>
+        </div>
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+          <p className="text-xs sm:text-sm text-gray-500 font-medium">AOV</p>
+          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(aov)}</p>{renderPoP(aov, prevStats.aov, false)}</div>
+        </div>
+        
+        {/* Các cột dưới đây dùng cờ `inverseColor = true` */}
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+          <p className="text-xs sm:text-sm text-gray-500 font-medium">Discount rate TB</p>
+          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(discountRateTB)}%</p>{renderPoP(discountRateTB, prevStats.discountRateTB, true)}</div>
+        </div>
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+          <p className="text-xs sm:text-sm text-gray-500 font-medium">Waste Qty</p>
+          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUS(wasteQty)}</p>{renderPoP(wasteQty, prevStats.wasteQty, true)}</div>
+        </div>
+        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+          <p className="text-xs sm:text-sm text-gray-500 font-medium">Cancel rate</p>
+          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(cancelRate)}%</p>{renderPoP(cancelRate, prevStats.cancelRate, true)}</div>
+        </div>
       </div>
 
       {/* CHARTS TẦNG 1 */}
@@ -328,10 +394,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             </div>
             <div className="w-full md:w-1/2 flex flex-col justify-center gap-1.5 sm:gap-2">
               {paymentData.map((p, i) => (
-                <div key={i} className="flex items-start justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-gray-50 pb-1.5 last:border-0">
-                  <div className="flex items-start flex-1 pr-2">
+                <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-gray-50 pb-1.5 last:border-0">
+                  <div className="flex items-start flex-1 min-w-0 pr-2">
                     <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mr-1.5 sm:mr-2 mt-[3px] shrink-0" style={{ backgroundColor: p.color }}></span>
-                    <span className="text-gray-600 leading-tight">{p.name}</span>
+                    <span className="text-gray-600 break-words leading-tight truncate" title={p.name}>{p.name}</span>
                   </div>
                   <span className="font-bold text-gray-900 shrink-0 text-right mt-[1px]">{formatUS(p.value)}</span>
                 </div>
@@ -432,7 +498,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       {/* PHIẾU TREO */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-4">Đối soát vận hành — Phiếu treo</h3>
-        {/* Chỉnh lại Grid để chứa đủ 5 thẻ (2 dòng trên mobile, 5 cột trên màn to) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Buying-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.buying)}</p></div>
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Process-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.process)}</p></div>
