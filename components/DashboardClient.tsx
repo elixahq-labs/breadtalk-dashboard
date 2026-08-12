@@ -58,9 +58,12 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).getTime();
   };
 
-  // 4. DROPDOWN OPTIONS
+  // 4. DROPDOWN OPTIONS (Đã bổ sung Sort A-Z cho Slicer Group)
   const stores = useMemo(() => Array.from(new Set(rawData.map(d => clean(d['Store-Name'])).filter(Boolean))), [rawData]);
-  const groups = useMemo(() => Array.from(new Set(rawData.map(d => clean(d['Group'])).filter(Boolean))), [rawData]);
+  const groups = useMemo(() => {
+    const uniqueGroups = Array.from(new Set(rawData.map(d => clean(d['Group'])).filter(Boolean)));
+    return uniqueGroups.sort((a: string, b: string) => a.localeCompare(b));
+  }, [rawData]);
 
   // 5. XỬ LÝ DỮ LIỆU
   const { netRevenue, totalBills, aov, discountRateTB, wasteQty, cancelRate, trendData, paymentData, topSalesByGroup, topWasteByGroup, agingTickets, pendingStats, gapData, filteredCount } = useMemo(() => {
@@ -69,10 +72,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const paymentMap: Record<string, number> = {};
     const gapMap: Record<string, any> = {};
     
-    // Khai báo cho Phiếu treo
     const ticketAgg: Record<string, any> = {};
     const pStats = { buying: 0, process: 0, wasteTicket: 0, import: 0 };
-    const wasteTrackMap: Record<string, Record<string, boolean>> = {}; // Theo dõi CH nào có Waste-Ticket ngày nào
+    const wasteTrackMap: Record<string, Record<string, boolean>> = {};
     const activeDates = new Set<string>();
     const activeStores = new Set<string>();
 
@@ -80,10 +82,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
     let fCount = 0;
     
-    // Giả định ngày hiện tại theo data
     const today = new Date('2026-08-12').getTime(); 
 
-    // Xác định mốc thời gian (Min/Max)
     let minTime = Infinity, maxTime = -Infinity;
     rawData.forEach(r => {
         const t = parseDataDate(r['Date']);
@@ -110,7 +110,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
       if (!rowTime) return;
 
-      // Lọc theo Slicer Cửa hàng & Group
       if (storeFilter !== 'All' && store !== storeFilter) return;
       if (groupFilter !== 'All' && groupName !== groupFilter) return;
 
@@ -169,20 +168,17 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         if (tType === 'Target') trendMap[day].target += salesVal;
         if (tType === 'Payment') paymentMap[tInfo || 'Khác'] = (paymentMap[tInfo || 'Khác'] || 0) + salesVal;
 
-        // --- PHIẾU TREO THEO TICKET-TYPE & TICKET-INFO ---
         if (tType === 'Ticket') { 
           if (['Buying-Ticket', 'Process-Ticket', 'Import-Ticket', 'Waste-Ticket'].includes(tInfo)) {
-            
             if (tInfo === 'Buying-Ticket') pStats.buying += qty;
             if (tInfo === 'Process-Ticket') pStats.process += qty;
             if (tInfo === 'Import-Ticket') pStats.import += qty;
             if (tInfo === 'Waste-Ticket') {
               pStats.wasteTicket += qty;
               if (!wasteTrackMap[store]) wasteTrackMap[store] = {};
-              wasteTrackMap[store][dateStr] = true; // Ghi nhận CH này đã có phiếu Waste ngày này
+              wasteTrackMap[store][dateStr] = true;
             }
 
-            // Gom nhóm phiếu treo theo Ngày + Cửa hàng + Loại phiếu
             const tKey = `${dateStr}_${store}_${tInfo}`;
             if (!ticketAgg[tKey]) {
               const agingDays = Math.floor((today - rowTime) / 86400000);
@@ -194,19 +190,23 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       }
     });
 
-    // Ép kiểu mảng và sắp xếp
     const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
     const pColors = ['#2563eb', '#f97316', '#10b981', '#fbbf24', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
     const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ group, items: Object.values(salesMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ group, items: Object.values(wasteMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
-    const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0);
+    
+    // Đã bổ sung Sort A-Z cho Bảng GAP tồn kho
+    const gData = Object.values(gapMap).map(r => { 
+      r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; 
+      return r; 
+    })
+    .filter(r => r.gap !== 0)
+    .sort((a, b) => a.group.localeCompare(b.group)); // Sắp xếp A-Z theo Group
 
-    // --- TÍNH PHIẾU TREO & THIẾU WASTE ---
     const allTickets = Object.values(ticketAgg).filter(t => t.qty > 0);
     const missingWasteList: any[] = [];
     
-    // Quét tìm cửa hàng nào THIẾU Waste-Ticket
     activeStores.forEach(st => {
       activeDates.forEach(dt => {
         if (!wasteTrackMap[st] || !wasteTrackMap[st][dt]) {
@@ -219,11 +219,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       });
     });
 
-    // Nối mảng và đưa các dòng Lỗi (Missing) lên đầu
     const finalAgingTickets = [...allTickets, ...missingWasteList].sort((a, b) => {
       if (a.isMissing && !b.isMissing) return -1;
       if (!a.isMissing && b.isMissing) return 1;
-      return b.aging - a.aging; // Treo lâu đẩy lên trên
+      return b.aging - a.aging;
     });
 
     return {
@@ -415,7 +414,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         </div>
       </div>
 
-      {/* PHIẾU TREO (ĐÃ NÂNG CẤP) */}
+      {/* PHIẾU TREO */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-4">Đối soát vận hành — Phiếu treo</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -434,7 +433,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             <tbody>
               {agingTickets.map((ticket, idx) => {
                 const isCritical = ticket.aging > 5 && !ticket.isMissing;
-                
                 let rowClass = 'text-gray-700 hover:bg-gray-50';
                 if (ticket.isMissing) rowClass = 'bg-red-100 text-red-800 font-bold border-l-4 border-l-red-600';
                 else if (isCritical) rowClass = 'bg-orange-50 text-orange-700 font-medium';
