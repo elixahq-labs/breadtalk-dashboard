@@ -81,23 +81,16 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
   // XỬ LÝ LÕI DỮ LIỆU & TÍNH TOÁN SO SÁNH CHU KỲ (PoP)
   const { 
-    // OVERVIEW METRICS
     netRevenue, totalBills, aov, discountRateTB, wasteQty, cancelRate, 
     trendData, paymentData, topSalesByGroup, topWasteByGroup, 
     agingTickets, pendingStats, gapData, filteredCount, prevStats,
-    
-    // MARKETING METRICS
     promoRev, promoDisc, promoQty, promoList, topPromoByQty, topPromoByRev
   } = useMemo(() => {
     
-    // Khai báo biến kỳ Hiện tại (Overview)
     let rev = 0, totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0;
-    // Khai báo biến kỳ Trước (Overview)
     let prevRev = 0, prevTotalDiscount = 0, prevCountBills = 0, prevCancelBills = 0, prevWaste = 0;
 
-    // Khai báo biến kỳ Hiện tại (Marketing)
     let mktPromoRev = 0, mktPromoDisc = 0, mktPromoQty = 0;
-    // Khai báo biến kỳ Trước (Marketing)
     let prevMktPromoRev = 0, prevMktPromoDisc = 0, prevMktPromoQty = 0;
 
     const trendMap: Record<string, any> = {};
@@ -113,12 +106,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     
     const salesMapByGroup: Record<string, Record<string, any>> = {};
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
-    const promoMap: Record<string, any> = {}; // Cho tab Marketing
+    const promoMap: Record<string, any> = {}; 
     
     let fCount = 0;
     const today = new Date('2026-08-12').getTime(); 
 
-    // Xác định mốc thời gian
     let minTime = Infinity, maxTime = -Infinity;
     rawData.forEach(r => {
         const t = parseDataDate(r['Date']);
@@ -128,7 +120,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const startTime = parseInputDate(startDate) || minTime;
     const endTime = parseInputDate(endDate) || maxTime;
     
-    // TÍNH TOÁN KHOẢNG THỜI GIAN KỲ TRƯỚC (PoP Logic)
     const diff = endTime - startTime; 
     const prevEndTime = startTime - 86400000;
     const prevStartTime = prevEndTime - diff;
@@ -156,12 +147,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
       // --- 1. GHI NHẬN KỲ TRƯỚC (PoP) ---
       if (isPrevPeriod) {
-        // Vận hành
         if (tType === 'Sales') { prevRev += gross; prevTotalDiscount += disc; }
         if (tType === 'Count-Bills') prevCountBills += qty;
         if (tType === 'Cancel') prevCancelBills += qty;
         if (tType === 'Waste') prevWaste += qty;
-        // Marketing (Promotion)
         if (tType === 'Promotion') {
           prevMktPromoRev += gross;
           prevMktPromoDisc += disc;
@@ -169,7 +158,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         }
       }
 
-      // --- 2. BẢNG GAP TỒN KHO ---
+      // --- 2. BẢNG GAP ---
       if (sku) {
         const key = `${groupName}_${sku}`;
         if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open:0, process:0, import:0, export:0, sales:0, waste:0, stock:0, gap:0 };
@@ -193,9 +182,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         activeStores.add(store);
 
         const day = dateStr.split('-')[0] || 'N/A';
-        if (!trendMap[day]) trendMap[day] = { day, revenue: 0, target: 0, discountAmt: 0, waste: 0, countBill: 0, cancel: 0 };
+        // Bổ sung promoRevenue vào trendMap để vẽ Line chart
+        if (!trendMap[day]) trendMap[day] = { day, revenue: 0, target: 0, discountAmt: 0, waste: 0, countBill: 0, cancel: 0, promoRevenue: 0 };
 
-        // DOANH THU & BILLS & WASTE (OVERVIEW)
         if (tType === 'Sales') {
           rev += gross; totalDiscount += disc; trendMap[day].revenue += gross; trendMap[day].discountAmt += disc;
           if (sku) {
@@ -218,12 +207,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           }
         }
 
-        // PROMOTION (MARKETING)
+        // PROMOTION
         if (tType === 'Promotion') {
           const pName = tInfo || 'Khác';
           mktPromoRev += gross;
           mktPromoDisc += disc;
           mktPromoQty += qty;
+          
+          // Nạp doanh thu KM vào chart theo ngày
+          trendMap[day].promoRevenue += gross;
 
           if (!promoMap[pName]) {
             promoMap[pName] = { name: pName, qty: 0, sales: 0, discount: 0, gross: 0 };
@@ -234,7 +226,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           promoMap[pName].gross += gross;
         }
 
-        // PHIẾU TREO (OVERVIEW)
+        // PHIẾU TREO
         if (tType === 'Ticket') { 
           if (tInfo === 'Waste-Ticket' && qty > 0) {
             if (!wasteTrackMap[store]) wasteTrackMap[store] = {};
@@ -259,7 +251,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       }
     });
 
-    // CHỐT DATA OVERVIEW
     const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
     const pColors = ['#2563eb', '#f97316', '#10b981', '#fbbf24', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
@@ -290,12 +281,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       return b.aging - a.aging;
     });
 
-    // CHỐT DATA MARKETING
-    const mktPromoList = Object.values(promoMap).sort((a, b) => b.gross - a.gross); // Mặc định sort theo Gross
-    const mktTopByQty = [...mktPromoList].sort((a, b) => b.qty - a.qty).slice(0, 5);
-    const mktTopByRev = [...mktPromoList].sort((a, b) => b.gross - a.gross).slice(0, 5);
+    // CHỐT DATA MARKETING (Cắt thành Top 10)
+    const mktPromoList = Object.values(promoMap).sort((a, b) => b.gross - a.gross); 
+    const mktTopByQty = [...mktPromoList].sort((a, b) => b.qty - a.qty).slice(0, 10);
+    const mktTopByRev = [...mktPromoList].sort((a, b) => b.gross - a.gross).slice(0, 10);
 
-    // KẾT XUẤT PREV STATS CHO PoP
     const prevStatsResult = {
       netRevenue: prevRev,
       totalBills: prevCountBills,
@@ -354,7 +344,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       <div className="mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-50">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
           <h1 className="text-lg md:text-xl font-bold text-gray-900">Dashboard Center</h1>
-          {/* TAB NAVIGATION NHÚNG NGAY TRONG HEADER */}
           <div className="flex bg-gray-100 p-1 rounded-lg">
             <button 
               onClick={() => setActiveTab('Overview')} 
@@ -628,8 +617,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       ========================================= */}
       {activeTab === 'Marketing' && (
         <>
-          {/* MARKETING SCORECARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
             <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
               <p className="text-xs sm:text-sm text-gray-500 font-medium">Doanh thu Khuyến mãi</p>
               <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-blue-600 truncate" title={formatUS(promoRev)}>{formatUS(promoRev)}</p>{renderPoP(promoRev, prevStats.promoRev, false)}</div>
@@ -652,19 +640,40 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             </div>
           </div>
 
-          {/* MARKETING CHARTS */}
+          {/* BIỂU ĐỒ TƯƠNG QUAN DOANH THU & KHUYẾN MÃI THEO NGÀY */}
+          <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full mb-6">
+            <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Tương quan Tổng Doanh Thu & Doanh Thu Khuyến Mãi (Theo Ngày)</h3>
+            <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[350px]">
+              <div className="absolute inset-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={trendData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
+                    <YAxis width={40} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
+                    <Tooltip formatter={(value: any) => formatUS(value)} />
+                    {/* Area Xanh dương cho Tổng Doanh thu */}
+                    <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="#eff6ff" name="Tổng Doanh thu" />
+                    {/* Area Xanh ngọc cho Doanh thu Khuyến mãi (đè lên trên) */}
+                    <Area type="monotone" dataKey="promoRevenue" stroke="#10b981" strokeWidth={2} fill="#d1fae5" name="DT Khuyến mãi" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* TOP 10 KHUYẾN MÃI */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Top 5 CTKM theo Số Lượng Bán</h3>
-              <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Top 10 CTKM theo Số Lượng Bán</h3>
+              <div className="flex-1 w-full relative min-h-[300px] sm:min-h-[400px]">
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={topPromoByQty} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                      <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
                       <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f3f4f6'}} />
-                      <Bar dataKey="qty" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={24} name="Số lượng" />
+                      <Bar dataKey="qty" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} name="Số lượng" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -672,16 +681,16 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             </div>
 
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Top 5 CTKM theo Doanh Thu Thuần</h3>
-              <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Top 10 CTKM theo Doanh Thu Thuần</h3>
+              <div className="flex-1 w-full relative min-h-[300px] sm:min-h-[400px]">
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={topPromoByRev} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                      <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
                       <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f3f4f6'}} />
-                      <Bar dataKey="gross" fill="#10b981" radius={[0, 4, 4, 0]} barSize={24} name="Doanh thu" />
+                      <Bar dataKey="gross" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} name="Doanh thu" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
