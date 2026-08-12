@@ -17,6 +17,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   const [groupFilter, setGroupFilter] = useState('All');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  
+  // NEW SLICER CHO REVIEWS & MISTAKES
+  const [reviewFilter, setReviewFilter] = useState('All');
 
   // FETCH DATA
   useEffect(() => {
@@ -166,6 +169,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
       // Định danh loại Review
       const isMapsReview = sourceMistake.includes('Maps') || tType === 'Maps-Reviews';
+      
+      // Xử lý cờ Review Filter
+      const passReviewFilter = reviewFilter === 'All' 
+        || (reviewFilter === 'Google Maps' && isMapsReview)
+        || (reviewFilter === 'Customer Surveys' && !isMapsReview);
 
       // --- 1. PREVIOUS PERIOD LOGIC (PoP) ---
       if (isPrevPeriod) {
@@ -179,7 +187,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           prevMktPromoQty += qty;
         }
         if (tType === 'Cus-Reviews' || tType === 'Reviews') {
-          if (qty > 0 && qty <= 5) {
+          if (passReviewFilter && qty > 0 && qty <= 5) {
              if (isMapsReview) { prevMapsSumRating += qty; prevMapsCountRating++; }
              else { prevCusSumRating += qty; prevCusCountRating++; }
           }
@@ -209,30 +217,32 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       // --- 3. CURRENT PERIOD LOGIC ---
       if (isCurrentPeriod || isDateEmpty) {
         
-        // REVIEWS & MISTAKES LOGIC (Bao gồm cả khi date trống)
+        // REVIEWS & MISTAKES LOGIC
         if (tType === 'Cus-Reviews' || tType === 'Reviews') {
-          if (qty > 0 && qty <= 5) {
-             const rounded = Math.round(qty);
-             if (isMapsReview) {
-               mapsSumRating += qty;
-               mapsCountRating++;
-               if (rounded === 5) mapsRatingCountMap['5 Stars']++;
-               else if (rounded === 4) mapsRatingCountMap['4 Stars']++;
-               else if (rounded === 3) mapsRatingCountMap['3 Stars']++;
-               else if (rounded === 2) mapsRatingCountMap['2 Stars']++;
-               else if (rounded === 1) mapsRatingCountMap['1 Star']++;
-             } else {
-               cusSumRating += qty;
-               cusCountRating++;
-               if (rounded === 5) cusRatingCountMap['5 Stars']++;
-               else if (rounded === 4) cusRatingCountMap['4 Stars']++;
-               else if (rounded === 3) cusRatingCountMap['3 Stars']++;
-               else if (rounded === 2) cusRatingCountMap['2 Stars']++;
-               else if (rounded === 1) cusRatingCountMap['1 Star']++;
-             }
-          }
-          if (tType === 'Reviews' && mistakeDetails) {
-             rList.push({ date: dateStr || 'N/A', store: store, rating: qty, source: sourceMistake, text: mistakeDetails });
+          if (passReviewFilter) {
+            if (qty > 0 && qty <= 5) {
+               const rounded = Math.round(qty);
+               if (isMapsReview) {
+                 mapsSumRating += qty;
+                 mapsCountRating++;
+                 if (rounded === 5) mapsRatingCountMap['5 Stars']++;
+                 else if (rounded === 4) mapsRatingCountMap['4 Stars']++;
+                 else if (rounded === 3) mapsRatingCountMap['3 Stars']++;
+                 else if (rounded === 2) mapsRatingCountMap['2 Stars']++;
+                 else if (rounded === 1) mapsRatingCountMap['1 Star']++;
+               } else {
+                 cusSumRating += qty;
+                 cusCountRating++;
+                 if (rounded === 5) cusRatingCountMap['5 Stars']++;
+                 else if (rounded === 4) cusRatingCountMap['4 Stars']++;
+                 else if (rounded === 3) cusRatingCountMap['3 Stars']++;
+                 else if (rounded === 2) cusRatingCountMap['2 Stars']++;
+                 else if (rounded === 1) cusRatingCountMap['1 Star']++;
+               }
+            }
+            if (tType === 'Reviews' && mistakeDetails) {
+               rList.push({ date: dateStr || 'N/A', store: store, rating: qty, source: sourceMistake, text: mistakeDetails });
+            }
           }
         }
 
@@ -375,7 +385,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       totalMistakes: countMistakes, mistakeList: mList, mistakeCatDist: mCatDistData,
       prevStats: prevStatsResult 
     };
-  }, [baseFilteredData, startDate, endDate, rawData]);
+  }, [baseFilteredData, startDate, endDate, rawData, reviewFilter]);
 
   // HÀM RENDER CHỈ SỐ SO SÁNH (PoP)
   const renderPoP = (current: number, prev: number, inverseColor: boolean = false) => {
@@ -449,7 +459,17 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             <option value="All">-- All Groups --</option>
             {groups.map((g: any) => <option key={g} value={g}>{g}</option>)}
           </select>
-          <div className="md:ml-auto flex items-center justify-center text-sm text-gray-500 font-medium bg-blue-50 text-blue-600 px-3 py-2 rounded-md w-full md:w-auto">
+          
+          {/* REVIEWS SOURCE SLICER (Chỉ hiển thị ở Tab Reviews) */}
+          {activeTab === 'Reviews' && (
+            <select value={reviewFilter} onChange={e => setReviewFilter(e.target.value)} className="border border-blue-300 rounded-md p-2 text-sm bg-blue-50 text-blue-800 cursor-pointer hover:border-blue-500 w-full md:w-auto font-medium">
+              <option value="All">-- All Review Sources --</option>
+              <option value="Google Maps">Google Maps</option>
+              <option value="Customer Surveys">Customer Surveys</option>
+            </select>
+          )}
+
+          <div className="md:ml-auto flex items-center justify-center text-sm text-gray-500 font-medium bg-gray-50 px-3 py-2 rounded-md w-full md:w-auto">
             Filtering: {formatUS(filteredCount)} records
           </div>
         </div>
@@ -686,7 +706,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         </>
       )}
 
-
       {/* =========================================
           TAB 2: MARKETING
       ========================================= */}
@@ -808,7 +827,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       {activeTab === 'Reviews' && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
-            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
+            <div className={`bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center ${reviewFilter === 'Customer Surveys' ? 'opacity-40' : ''}`}>
               <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Maps Avg Rating</p>
               <div className="flex items-center justify-center">
                 <span className="text-3xl sm:text-4xl font-black text-gray-800 mr-1">{avgMapsRating.toFixed(2)}</span>
@@ -816,7 +835,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                 <div className="mb-1">{renderPoP(avgMapsRating, prevStats.prevAvgMaps, false)}</div>
               </div>
             </div>
-            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
+            <div className={`bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center ${reviewFilter === 'Google Maps' ? 'opacity-40' : ''}`}>
               <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Survey Avg Rating</p>
               <div className="flex items-center justify-center">
                 <span className="text-3xl sm:text-4xl font-black text-gray-800 mr-1">{avgCusRating.toFixed(2)}</span>
@@ -843,7 +862,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 items-stretch">
             {/* MAPS RATING DISTRIBUTION */}
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+            <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full ${reviewFilter === 'Customer Surveys' ? 'hidden lg:flex opacity-40' : ''}`}>
               <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Maps Rating Dist.</h3>
               <div className="flex-1 flex flex-col items-center justify-center gap-2">
                  <div className="h-40 sm:h-48 w-full shrink-0">
@@ -869,7 +888,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             </div>
 
             {/* SURVEY RATING DISTRIBUTION */}
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+            <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full ${reviewFilter === 'Google Maps' ? 'hidden lg:flex opacity-40' : ''}`}>
               <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Survey Rating Dist.</h3>
               <div className="flex-1 flex flex-col items-center justify-center gap-2">
                  <div className="h-40 sm:h-48 w-full shrink-0">
@@ -895,7 +914,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             </div>
 
             {/* MISTAKES BY CATEGORY BAR CHART */}
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+            <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full ${(reviewFilter === 'Google Maps' || reviewFilter === 'Customer Surveys') ? 'lg:col-span-2' : ''}`}>
               <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Mistakes by Category</h3>
               <div className="flex-1 w-full relative min-h-[250px]">
                 <div className="absolute inset-0">
