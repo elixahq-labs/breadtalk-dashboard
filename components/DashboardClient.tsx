@@ -22,7 +22,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       let allData: any[] = [];
       try {
         for (const file of fileNames) {
-          // Trình duyệt tự động fetch file tĩnh
           const response = await fetch(`/data/${file}`);
           const text = await response.text();
           
@@ -167,8 +166,13 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     });
 
     const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
-    const pColors = ['#2563eb', '#f97316', '#10b981', '#fbbf24', '#8b5cf6', '#ec4899'];
-    const pData = Object.keys(paymentMap).map((k, i) => ({ name: k, value: paymentMap[k], color: pColors[i % pColors.length] }));
+    const pColors = ['#2563eb', '#f97316', '#10b981', '#fbbf24', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
+    
+    const pData = Object.keys(paymentMap)
+      .map(k => ({ name: k, value: paymentMap[k] }))
+      .sort((a, b) => b.value - a.value)
+      .map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
+
     const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ group, items: Object.values(salesMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ group, items: Object.values(wasteMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     const gData = Object.values(gapMap).map(r => { r.gap = (r.open + r.process + r.import) - (r.export + r.sales + r.waste + r.stock); return r; }).filter(r => r.gap !== 0);
@@ -180,7 +184,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     };
   }, [filteredData]);
 
-  // GIAO DIỆN TRẠNG THÁI LOADING
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
@@ -190,9 +193,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     );
   }
 
-  // GIAO DIỆN CHÍNH
   return (
     <div className="p-3 sm:p-6 bg-[#f8f9fa] min-h-screen font-sans text-gray-800">
+      
+      {/* GLOBAL SLICERS */}
       <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-50">
         <h1 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Operations Dashboard</h1>
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full">
@@ -217,6 +221,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         </div>
       </div>
 
+      {/* SCORECARDS RESPONSIVE */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs sm:text-sm text-gray-500 font-medium">Net revenue</p><p className="text-lg sm:text-2xl font-bold mt-1 truncate" title={formatUS(netRevenue)}>{formatUS(netRevenue)}</p></div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs sm:text-sm text-gray-500 font-medium">Count-Bills</p><p className="text-lg sm:text-2xl font-bold mt-1 truncate">{formatUS(totalBills)}</p></div>
@@ -226,25 +231,33 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs sm:text-sm text-gray-500 font-medium">Cancel rate</p><p className="text-lg sm:text-2xl font-bold mt-1 truncate">{formatUS(cancelRate)}%</p></div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="font-bold mb-4 text-sm sm:text-base">Doanh thu theo ngày</h3>
-          <div className="h-56 sm:h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                <YAxis width={40} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
-                <Tooltip formatter={(value: any) => formatUS(value)} />
-                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fill="#eff6ff" name="Doanh thu" />
-              </ComposedChart>
-            </ResponsiveContainer>
+      {/* CHARTS TẦNG 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+        
+        {/* Doanh thu (Đã fix giãn cao tuyệt đối) */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+          <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Doanh thu theo ngày</h3>
+          {/* Mẹo absolute inset-0 để ép ResponsiveContainer giãn kịch khung cha */}
+          <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
+            <div className="absolute inset-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
+                  <YAxis width={40} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
+                  <Tooltip formatter={(value: any) => formatUS(value)} />
+                  <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fill="#eff6ff" name="Doanh thu" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
-          <h3 className="font-bold mb-4 text-sm sm:text-base">Cơ cấu thanh toán</h3>
-          <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-4">
-             <div className="h-48 sm:h-64 w-full md:w-1/2">
+
+        {/* Thanh toán (Đã fix font nhỏ & không rớt dòng cho mobile) */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+          <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Cơ cấu thanh toán</h3>
+          <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6">
+             <div className="h-48 sm:h-64 w-full md:w-1/2 shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={paymentData} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="value">
@@ -254,11 +267,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="w-full md:w-1/2 space-y-2 grid grid-cols-2 md:grid-cols-1 gap-2 md:gap-0">
+            
+            {/* Legend rút gọn gap và font size trên điện thoại */}
+            <div className="w-full md:w-1/2 flex flex-col justify-center gap-1.5 sm:gap-2">
               {paymentData.map((p, i) => (
-                <div key={i} className="flex items-center text-xs sm:text-sm w-full overflow-hidden">
-                  <span className="w-3 h-3 rounded-full mr-2 shrink-0" style={{ backgroundColor: p.color }}></span>
-                  <span className="text-gray-600 truncate" title={p.name}>{p.name}: <span className="font-bold">{formatUS(p.value)}</span></span>
+                <div key={i} className="flex items-start text-[11px] sm:text-xs xl:text-sm w-full">
+                  <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mr-1.5 sm:mr-2 mt-[3px] shrink-0" style={{ backgroundColor: p.color }}></span>
+                  <span className="text-gray-600 leading-tight">
+                    {p.name}: <span className="font-bold whitespace-nowrap ml-1 text-gray-900">{formatUS(p.value)}</span>
+                  </span>
                 </div>
               ))}
             </div>
@@ -266,41 +283,47 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="font-bold mb-4 text-sm sm:text-base">Discount rate theo ngày (%)</h3>
-          <div className="h-56 sm:h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
-                <Tooltip formatter={(value: any) => `${formatUS(value)}%`} />
-                <Area type="monotone" dataKey="discount" stroke="#ea580c" strokeWidth={3} fill="#fff7ed" name="Discount Rate" />
-              </AreaChart>
-            </ResponsiveContainer>
+      {/* CHARTS TẦNG 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+          <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Discount rate theo ngày (%)</h3>
+          <div className="flex-1 w-full relative min-h-[250px]">
+            <div className="absolute inset-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
+                  <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
+                  <Tooltip formatter={(value: any) => `${formatUS(value)}%`} />
+                  <Area type="monotone" dataKey="discount" stroke="#ea580c" strokeWidth={3} fill="#fff7ed" name="Discount Rate" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="font-bold mb-4 text-sm sm:text-base">Waste Qty theo ngày</h3>
-          <div className="h-56 sm:h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
-                <Tooltip formatter={(value: any) => formatUS(value)} />
-                <Line type="monotone" dataKey="waste" stroke="#ef4444" strokeWidth={3} dot={{r:3}} name="Waste Qty" />
-              </LineChart>
-            </ResponsiveContainer>
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+          <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste Qty theo ngày</h3>
+          <div className="flex-1 w-full relative min-h-[250px]">
+            <div className="absolute inset-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
+                  <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
+                  <Tooltip formatter={(value: any) => formatUS(value)} />
+                  <Line type="monotone" dataKey="waste" stroke="#ef4444" strokeWidth={3} dot={{r:3}} name="Waste Qty" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* BẢNG TOP THEO GROUP */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="font-bold mb-4 text-sm sm:text-base">Top 5 SP bán chạy (Theo Group)</h3>
-          <div className="overflow-y-auto overflow-x-auto max-h-[350px]">
+          <div className="overflow-y-auto overflow-x-auto max-h-[400px]">
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="sticky top-0 bg-white">
                 <tr className="text-gray-500 border-b border-gray-100">
@@ -313,7 +336,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                     <tr className="bg-blue-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-blue-800 uppercase text-xs">Group: {g.group}</td></tr>
                     {g.items.map((item: any, i: number) => (
                       <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td><td className="py-2 px-1 font-medium truncate max-w-[150px] sm:max-w-[200px]" title={item.name}>{item.name}</td><td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
+                        <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td><td className="py-2 px-1 font-medium truncate max-w-[150px] sm:max-w-[250px]" title={item.name}>{item.name}</td><td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
                       </tr>
                     ))}
                   </React.Fragment>
@@ -324,7 +347,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         </div>
         <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="font-bold mb-4 text-sm sm:text-base">Top 5 SP hao hụt (Theo Group)</h3>
-          <div className="overflow-y-auto overflow-x-auto max-h-[350px]">
+          <div className="overflow-y-auto overflow-x-auto max-h-[400px]">
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="sticky top-0 bg-white">
                 <tr className="text-gray-500 border-b border-gray-100">
@@ -337,7 +360,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                     <tr className="bg-red-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-red-800 uppercase text-xs">Group: {g.group}</td></tr>
                     {g.items.map((item: any, i: number) => (
                       <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td><td className="py-2 px-1 font-medium truncate max-w-[150px] sm:max-w-[200px]" title={item.name}>{item.name}</td><td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
+                        <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td><td className="py-2 px-1 font-medium truncate max-w-[150px] sm:max-w-[250px]" title={item.name}>{item.name}</td><td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
                       </tr>
                     ))}
                   </React.Fragment>
@@ -348,6 +371,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         </div>
       </div>
 
+      {/* PHIẾU TREO */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-4">Đối soát vận hành — Phiếu treo</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -378,6 +402,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         </div>
       </div>
 
+      {/* BẢNG GAP */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-2">Bảng GAP tồn kho (GAP ≠ 0)</h3>
         <div className="overflow-y-auto overflow-x-auto max-h-[500px] mt-2 relative">
