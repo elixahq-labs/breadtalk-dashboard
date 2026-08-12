@@ -2,13 +2,17 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
-import { AreaChart, Area, PieChart, Pie, Cell, ComposedChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, PieChart, Pie, Cell, ComposedChart, Line, LineChart, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
 export default function DashboardClient({ fileNames }: { fileNames: string[] }) {
   const [rawData, setRawData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // STATE ĐIỀU HƯỚNG TAB
+  const [activeTab, setActiveTab] = useState('Overview');
+
+  // STATE BỘ LỌC
   const [storeFilter, setStoreFilter] = useState('All');
   const [groupFilter, setGroupFilter] = useState('All');
   const [startDate, setStartDate] = useState('');
@@ -64,7 +68,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     return uniqueGroups.sort((a: string, b: string) => a.localeCompare(b));
   }, [rawData]);
 
-  // TIỀN LỌC DỮ LIỆU (Chỉ lọc Cửa hàng & Nhóm)
+  // TIỀN LỌC DỮ LIỆU
   const baseFilteredData = useMemo(() => {
     return rawData.filter(row => {
       const store = clean(row['Store-Name']);
@@ -77,15 +81,24 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
   // XỬ LÝ LÕI DỮ LIỆU & TÍNH TOÁN SO SÁNH CHU KỲ (PoP)
   const { 
+    // OVERVIEW METRICS
     netRevenue, totalBills, aov, discountRateTB, wasteQty, cancelRate, 
     trendData, paymentData, topSalesByGroup, topWasteByGroup, 
-    agingTickets, pendingStats, gapData, filteredCount, prevStats 
+    agingTickets, pendingStats, gapData, filteredCount, prevStats,
+    
+    // MARKETING METRICS
+    promoRev, promoDisc, promoQty, promoList, topPromoByQty, topPromoByRev
   } = useMemo(() => {
     
-    // Khai báo biến kỳ Hiện tại
+    // Khai báo biến kỳ Hiện tại (Overview)
     let rev = 0, totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0;
-    // Khai báo biến kỳ Trước
+    // Khai báo biến kỳ Trước (Overview)
     let prevRev = 0, prevTotalDiscount = 0, prevCountBills = 0, prevCancelBills = 0, prevWaste = 0;
+
+    // Khai báo biến kỳ Hiện tại (Marketing)
+    let mktPromoRev = 0, mktPromoDisc = 0, mktPromoQty = 0;
+    // Khai báo biến kỳ Trước (Marketing)
+    let prevMktPromoRev = 0, prevMktPromoDisc = 0, prevMktPromoQty = 0;
 
     const trendMap: Record<string, any> = {};
     const paymentMap: Record<string, number> = {};
@@ -97,13 +110,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const stockTrackMap: Record<string, Record<string, boolean>> = {};
     const activeDates = new Set<string>();
     const activeStores = new Set<string>();
+    
     const salesMapByGroup: Record<string, Record<string, any>> = {};
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
+    const promoMap: Record<string, any> = {}; // Cho tab Marketing
     
     let fCount = 0;
     const today = new Date('2026-08-12').getTime(); 
 
-    // Xác định mốc thời gian Tự động
+    // Xác định mốc thời gian
     let minTime = Infinity, maxTime = -Infinity;
     rawData.forEach(r => {
         const t = parseDataDate(r['Date']);
@@ -115,9 +130,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     
     // TÍNH TOÁN KHOẢNG THỜI GIAN KỲ TRƯỚC (PoP Logic)
     const diff = endTime - startTime; 
-    const prevEndTime = startTime - 86400000; // Lùi 1 ngày
+    const prevEndTime = startTime - 86400000;
     const prevStartTime = prevEndTime - diff;
-    const openTime = startTime - 86400000; // Cho số Open của bảng GAP
+    const openTime = startTime - 86400000;
 
     baseFilteredData.forEach(row => {
       const store = clean(row['Store-Name']);
@@ -139,12 +154,19 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const isCurrentPeriod = rowTime >= startTime && rowTime <= endTime;
       const isPrevPeriod = rowTime >= prevStartTime && rowTime <= prevEndTime;
 
-      // --- 1. GHI NHẬN KỲ TRƯỚC (Previous Period) ---
+      // --- 1. GHI NHẬN KỲ TRƯỚC (PoP) ---
       if (isPrevPeriod) {
+        // Vận hành
         if (tType === 'Sales') { prevRev += gross; prevTotalDiscount += disc; }
         if (tType === 'Count-Bills') prevCountBills += qty;
         if (tType === 'Cancel') prevCancelBills += qty;
         if (tType === 'Waste') prevWaste += qty;
+        // Marketing (Promotion)
+        if (tType === 'Promotion') {
+          prevMktPromoRev += gross;
+          prevMktPromoDisc += disc;
+          prevMktPromoQty += qty;
+        }
       }
 
       // --- 2. BẢNG GAP TỒN KHO ---
@@ -164,7 +186,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         }
       }
 
-      // --- 3. GHI NHẬN KỲ HIỆN TẠI (Current Period) ---
+      // --- 3. GHI NHẬN KỲ HIỆN TẠI ---
       if (isCurrentPeriod) {
         fCount++;
         activeDates.add(dateStr);
@@ -173,6 +195,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         const day = dateStr.split('-')[0] || 'N/A';
         if (!trendMap[day]) trendMap[day] = { day, revenue: 0, target: 0, discountAmt: 0, waste: 0, countBill: 0, cancel: 0 };
 
+        // DOANH THU & BILLS & WASTE (OVERVIEW)
         if (tType === 'Sales') {
           rev += gross; totalDiscount += disc; trendMap[day].revenue += gross; trendMap[day].discountAmt += disc;
           if (sku) {
@@ -195,6 +218,23 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           }
         }
 
+        // PROMOTION (MARKETING)
+        if (tType === 'Promotion') {
+          const pName = tInfo || 'Khác';
+          mktPromoRev += gross;
+          mktPromoDisc += disc;
+          mktPromoQty += qty;
+
+          if (!promoMap[pName]) {
+            promoMap[pName] = { name: pName, qty: 0, sales: 0, discount: 0, gross: 0 };
+          }
+          promoMap[pName].qty += qty;
+          promoMap[pName].sales += salesVal;
+          promoMap[pName].discount += disc;
+          promoMap[pName].gross += gross;
+        }
+
+        // PHIẾU TREO (OVERVIEW)
         if (tType === 'Ticket') { 
           if (tInfo === 'Waste-Ticket' && qty > 0) {
             if (!wasteTrackMap[store]) wasteTrackMap[store] = {};
@@ -204,12 +244,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             if (!stockTrackMap[store]) stockTrackMap[store] = {};
             stockTrackMap[store][dateStr] = true;
           }
-
           if (['Buying-Ticket', 'Process-Ticket', 'Import-Ticket'].includes(tInfo)) {
             if (tInfo === 'Buying-Ticket') pStats.buying += qty;
             if (tInfo === 'Process-Ticket') pStats.process += qty;
             if (tInfo === 'Import-Ticket') pStats.import += qty;
-
             const tKey = `${dateStr}_${store}_${tInfo}`;
             if (!ticketAgg[tKey]) {
               const agingDays = Math.floor((today - rowTime) / 86400000);
@@ -221,7 +259,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       }
     });
 
-    // Ép kiểu các bảng phụ trợ
+    // CHỐT DATA OVERVIEW
     const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
     const pColors = ['#2563eb', '#f97316', '#10b981', '#fbbf24', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
@@ -229,7 +267,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ group, items: Object.values(wasteMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Khác').sort((a, b) => a.group.localeCompare(b.group)); 
 
-    // Soạn Phiếu Treo
     const allTickets = Object.values(ticketAgg).filter(t => t.qty > 0);
     const missingTicketsList: any[] = [];
     activeStores.forEach(st => {
@@ -237,11 +274,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         const tDate = parseDataDate(dt) || today;
         const agingDays = Math.floor((today - tDate) / 86400000);
         if (!wasteTrackMap[st] || !wasteTrackMap[st][dt]) {
-          missingTicketsList.push({ date: dt, store: st, type: 'THIẾU WASTE-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true });
+          missingTicketsList.push({ date: dt, store: st, type: '⚠️ THIẾU WASTE-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true });
           pStats.missingWaste++;
         }
         if (!stockTrackMap[st] || !stockTrackMap[st][dt]) {
-          missingTicketsList.push({ date: dt, store: st, type: 'THIẾU STOCK-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true });
+          missingTicketsList.push({ date: dt, store: st, type: '⚠️ THIẾU STOCK-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true });
           pStats.missingStock++;
         }
       });
@@ -253,33 +290,41 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       return b.aging - a.aging;
     });
 
-    // CHỐT KPI KỲ TRƯỚC (Dùng cho render)
+    // CHỐT DATA MARKETING
+    const mktPromoList = Object.values(promoMap).sort((a, b) => b.gross - a.gross); // Mặc định sort theo Gross
+    const mktTopByQty = [...mktPromoList].sort((a, b) => b.qty - a.qty).slice(0, 5);
+    const mktTopByRev = [...mktPromoList].sort((a, b) => b.gross - a.gross).slice(0, 5);
+
+    // KẾT XUẤT PREV STATS CHO PoP
     const prevStatsResult = {
       netRevenue: prevRev,
       totalBills: prevCountBills,
       aov: prevCountBills > 0 ? prevRev / prevCountBills : 0,
       discountRateTB: prevRev > 0 ? (prevTotalDiscount / prevRev) * 100 : 0,
       wasteQty: prevWaste,
-      cancelRate: prevCountBills > 0 ? (prevCancelBills / prevCountBills) * 100 : 0
+      cancelRate: prevCountBills > 0 ? (prevCancelBills / prevCountBills) * 100 : 0,
+      promoRev: prevMktPromoRev,
+      promoDisc: prevMktPromoDisc,
+      promoQty: prevMktPromoQty
     };
 
     return {
       netRevenue: rev, totalBills: countBills, aov: countBills > 0 ? rev / countBills : 0, discountRateTB: rev > 0 ? (totalDiscount / rev) * 100 : 0,
       wasteQty: waste, cancelRate: countBills > 0 ? (cancelBills / countBills) * 100 : 0,
       trendData: tData, paymentData: pData, topSalesByGroup: tSalesGroup, topWasteByGroup: tWasteGroup, agingTickets: finalAgingTickets, pendingStats: pStats, gapData: gData, filteredCount: fCount,
-      prevStats: prevStatsResult // Xuất data kỳ trước
+      promoRev: mktPromoRev, promoDisc: mktPromoDisc, promoQty: mktPromoQty, promoList: mktPromoList, topPromoByQty: mktTopByQty, topPromoByRev: mktTopByRev,
+      prevStats: prevStatsResult 
     };
   }, [baseFilteredData, startDate, endDate, rawData]);
 
   // HÀM RENDER CHỈ SỐ SO SÁNH (PoP)
   const renderPoP = (current: number, prev: number, inverseColor: boolean = false) => {
-    if (!prev || prev === 0) return <span className="text-[10px] sm:text-xs text-gray-400 ml-2 font-normal">--</span>; // Không có dữ liệu kỳ trước
-    if (current === prev) return null; // Bằng nhau thì bỏ trống
+    if (!prev || prev === 0) return <span className="text-[10px] sm:text-xs text-gray-400 ml-2 font-normal">--</span>; 
+    if (current === prev) return null; 
     
     const changePercent = ((current - prev) / prev) * 100;
     const isPositive = changePercent > 0;
     
-    // Nếu inverseColor=true (Dùng cho Waste, Cancel, Discount): Tăng là Đỏ, Giảm là Xanh
     const colorClass = isPositive 
       ? (inverseColor ? 'text-red-500' : 'text-green-500') 
       : (inverseColor ? 'text-green-500' : 'text-red-500');
@@ -305,9 +350,25 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   return (
     <div className="p-3 sm:p-6 bg-[#f8f9fa] min-h-screen font-sans text-gray-800">
       
-      {/* SLICERS */}
-      <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-50">
-        <h1 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Operations Dashboard</h1>
+      {/* GLOBAL SLICERS */}
+      <div className="mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-50">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+          <h1 className="text-lg md:text-xl font-bold text-gray-900">Dashboard Center</h1>
+          {/* TAB NAVIGATION NHÚNG NGAY TRONG HEADER */}
+          <div className="flex bg-gray-100 p-1 rounded-lg">
+            <button 
+              onClick={() => setActiveTab('Overview')} 
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'Overview' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              Vận hành (Overview)
+            </button>
+            <button 
+              onClick={() => setActiveTab('Marketing')} 
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'Marketing' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              Khuyến mãi (Marketing)
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full">
           <select value={storeFilter} onChange={e => setStoreFilter(e.target.value)} className="border border-gray-300 rounded-md p-2 text-sm bg-white cursor-pointer hover:border-blue-500 w-full md:w-auto">
             <option value="All">-- Tất cả Cửa hàng --</option>
@@ -330,238 +391,338 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         </div>
       </div>
 
-      {/* SCORECARDS (Đã tích hợp So Sánh Chu Kỳ) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-          <p className="text-xs sm:text-sm text-gray-500 font-medium">Net revenue</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate" title={formatUS(netRevenue)}>{formatUS(netRevenue)}</p>{renderPoP(netRevenue, prevStats.netRevenue, false)}</div>
-        </div>
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-          <p className="text-xs sm:text-sm text-gray-500 font-medium">Count-Bills</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(totalBills)}</p>{renderPoP(totalBills, prevStats.totalBills, false)}</div>
-        </div>
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-          <p className="text-xs sm:text-sm text-gray-500 font-medium">AOV</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(aov)}</p>{renderPoP(aov, prevStats.aov, false)}</div>
-        </div>
-        
-        {/* Các cột dưới đây dùng cờ `inverseColor = true` */}
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-          <p className="text-xs sm:text-sm text-gray-500 font-medium">Discount rate TB</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(discountRateTB)}%</p>{renderPoP(discountRateTB, prevStats.discountRateTB, true)}</div>
-        </div>
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-          <p className="text-xs sm:text-sm text-gray-500 font-medium">Waste Qty</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUS(wasteQty)}</p>{renderPoP(wasteQty, prevStats.wasteQty, true)}</div>
-        </div>
-        <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-          <p className="text-xs sm:text-sm text-gray-500 font-medium">Cancel rate</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(cancelRate)}%</p>{renderPoP(cancelRate, prevStats.cancelRate, true)}</div>
-        </div>
-      </div>
-
-      {/* CHARTS TẦNG 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-          <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Doanh thu theo ngày</h3>
-          <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
-            <div className="absolute inset-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                  <YAxis width={40} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
-                  <Tooltip formatter={(value: any) => formatUS(value)} />
-                  <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fill="#eff6ff" name="Doanh thu" />
-                </ComposedChart>
-              </ResponsiveContainer>
+      {/* =========================================
+          TAB 1: OVERVIEW (VẬN HÀNH)
+      ========================================= */}
+      {activeTab === 'Overview' && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Net revenue</p>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate" title={formatUS(netRevenue)}>{formatUS(netRevenue)}</p>{renderPoP(netRevenue, prevStats.netRevenue, false)}</div>
+            </div>
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Count-Bills</p>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(totalBills)}</p>{renderPoP(totalBills, prevStats.totalBills, false)}</div>
+            </div>
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">AOV</p>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(aov)}</p>{renderPoP(aov, prevStats.aov, false)}</div>
+            </div>
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Discount rate TB</p>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(discountRateTB)}%</p>{renderPoP(discountRateTB, prevStats.discountRateTB, true)}</div>
+            </div>
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Waste Qty</p>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUS(wasteQty)}</p>{renderPoP(wasteQty, prevStats.wasteQty, true)}</div>
+            </div>
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Cancel rate</p>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(cancelRate)}%</p>{renderPoP(cancelRate, prevStats.cancelRate, true)}</div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-          <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Cơ cấu thanh toán</h3>
-          <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6">
-             <div className="h-48 sm:h-64 w-full md:w-1/2 shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={paymentData} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="value">
-                    {paymentData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip formatter={(value: any) => formatUS(value)} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="w-full md:w-1/2 flex flex-col justify-center gap-1.5 sm:gap-2">
-              {paymentData.map((p, i) => (
-                <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-gray-50 pb-1.5 last:border-0">
-                  <div className="flex items-start flex-1 min-w-0 pr-2">
-                    <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mr-1.5 sm:mr-2 mt-[3px] shrink-0" style={{ backgroundColor: p.color }}></span>
-                    <span className="text-gray-600 break-words leading-tight truncate" title={p.name}>{p.name}</span>
-                  </div>
-                  <span className="font-bold text-gray-900 shrink-0 text-right mt-[1px]">{formatUS(p.value)}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Doanh thu theo ngày</h3>
+              <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
+                <div className="absolute inset-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={trendData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
+                      <YAxis width={40} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
+                      <Tooltip formatter={(value: any) => formatUS(value)} />
+                      <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fill="#eff6ff" name="Doanh thu" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
                 </div>
-              ))}
+              </div>
+            </div>
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Cơ cấu thanh toán</h3>
+              <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6">
+                 <div className="h-48 sm:h-64 w-full md:w-1/2 shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={paymentData} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="value">
+                        {paymentData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip formatter={(value: any) => formatUS(value)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-full md:w-1/2 flex flex-col justify-center gap-1.5 sm:gap-2">
+                  {paymentData.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-gray-50 pb-1.5 last:border-0">
+                      <div className="flex items-start flex-1 min-w-0 pr-2">
+                        <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mr-1.5 sm:mr-2 mt-[3px] shrink-0" style={{ backgroundColor: p.color }}></span>
+                        <span className="text-gray-600 break-words leading-tight truncate" title={p.name}>{p.name}</span>
+                      </div>
+                      <span className="font-bold text-gray-900 shrink-0 text-right mt-[1px]">{formatUS(p.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* CHARTS TẦNG 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-          <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Discount rate theo ngày (%)</h3>
-          <div className="flex-1 w-full relative min-h-[250px]">
-            <div className="absolute inset-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                  <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
-                  <Tooltip formatter={(value: any) => `${formatUS(value)}%`} />
-                  <Area type="monotone" dataKey="discount" stroke="#ea580c" strokeWidth={3} fill="#fff7ed" name="Discount Rate" />
-                </AreaChart>
-              </ResponsiveContainer>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Discount rate theo ngày (%)</h3>
+              <div className="flex-1 w-full relative min-h-[250px]">
+                <div className="absolute inset-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={trendData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
+                      <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
+                      <Tooltip formatter={(value: any) => `${formatUS(value)}%`} />
+                      <Area type="monotone" dataKey="discount" stroke="#ea580c" strokeWidth={3} fill="#fff7ed" name="Discount Rate" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste Qty theo ngày</h3>
+              <div className="flex-1 w-full relative min-h-[250px]">
+                <div className="absolute inset-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={trendData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
+                      <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
+                      <Tooltip formatter={(value: any) => formatUS(value)} />
+                      <Line type="monotone" dataKey="waste" stroke="#ef4444" strokeWidth={3} dot={{r:3}} name="Waste Qty" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-          <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste Qty theo ngày</h3>
-          <div className="flex-1 w-full relative min-h-[250px]">
-            <div className="absolute inset-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                  <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
-                  <Tooltip formatter={(value: any) => formatUS(value)} />
-                  <Line type="monotone" dataKey="waste" stroke="#ef4444" strokeWidth={3} dot={{r:3}} name="Waste Qty" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* BẢNG TOP THEO GROUP */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="font-bold mb-4 text-sm sm:text-base">Top 5 SP bán chạy (Theo Group)</h3>
-          <div className="overflow-y-auto overflow-x-auto max-h-[400px]">
-            <table className="w-full text-sm text-left whitespace-nowrap">
-              <thead className="sticky top-0 bg-white shadow-sm z-10">
-                <tr className="text-gray-500 border-b border-gray-100">
-                  <th className="pb-2 font-medium px-1">SKU</th><th className="pb-2 font-medium px-1">Sản phẩm</th><th className="pb-2 font-medium px-1 text-right">Qty</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topSalesByGroup.map((g, gIdx) => (
-                  <React.Fragment key={gIdx}>
-                    <tr className="bg-blue-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-blue-800 uppercase text-xs">Group: {g.group}</td></tr>
-                    {g.items.map((item: any, i: number) => (
-                      <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td><td className="py-2 px-1 font-medium truncate max-w-[150px] sm:max-w-[250px]" title={item.name}>{item.name}</td><td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
-                      </tr>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
+              <h3 className="font-bold mb-4 text-sm sm:text-base">Top 5 SP bán chạy (Theo Group)</h3>
+              <div className="overflow-y-auto overflow-x-auto max-h-[400px]">
+                <table className="w-full text-sm text-left whitespace-nowrap">
+                  <thead className="sticky top-0 bg-white shadow-sm z-10">
+                    <tr className="text-gray-500 border-b border-gray-100">
+                      <th className="pb-2 font-medium px-1">SKU</th><th className="pb-2 font-medium px-1">Sản phẩm</th><th className="pb-2 font-medium px-1 text-right">Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topSalesByGroup.map((g, gIdx) => (
+                      <React.Fragment key={gIdx}>
+                        <tr className="bg-blue-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-blue-800 uppercase text-xs">Group: {g.group}</td></tr>
+                        {g.items.map((item: any, i: number) => (
+                          <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                            <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td><td className="py-2 px-1 font-medium truncate max-w-[150px] sm:max-w-[250px]" title={item.name}>{item.name}</td><td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
                     ))}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="font-bold mb-4 text-sm sm:text-base">Top 5 SP hao hụt (Theo Group)</h3>
-          <div className="overflow-y-auto overflow-x-auto max-h-[400px]">
-            <table className="w-full text-sm text-left whitespace-nowrap">
-              <thead className="sticky top-0 bg-white shadow-sm z-10">
-                <tr className="text-gray-500 border-b border-gray-100">
-                  <th className="pb-2 font-medium px-1">SKU</th><th className="pb-2 font-medium px-1">Sản phẩm</th><th className="pb-2 font-medium px-1 text-right">Qty</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topWasteByGroup.map((g, gIdx) => (
-                  <React.Fragment key={gIdx}>
-                    <tr className="bg-red-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-red-800 uppercase text-xs">Group: {g.group}</td></tr>
-                    {g.items.map((item: any, i: number) => (
-                      <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td><td className="py-2 px-1 font-medium truncate max-w-[150px] sm:max-w-[250px]" title={item.name}>{item.name}</td><td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
-                      </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
+              <h3 className="font-bold mb-4 text-sm sm:text-base">Top 5 SP hao hụt (Theo Group)</h3>
+              <div className="overflow-y-auto overflow-x-auto max-h-[400px]">
+                <table className="w-full text-sm text-left whitespace-nowrap">
+                  <thead className="sticky top-0 bg-white shadow-sm z-10">
+                    <tr className="text-gray-500 border-b border-gray-100">
+                      <th className="pb-2 font-medium px-1">SKU</th><th className="pb-2 font-medium px-1">Sản phẩm</th><th className="pb-2 font-medium px-1 text-right">Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topWasteByGroup.map((g, gIdx) => (
+                      <React.Fragment key={gIdx}>
+                        <tr className="bg-red-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-red-800 uppercase text-xs">Group: {g.group}</td></tr>
+                        {g.items.map((item: any, i: number) => (
+                          <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                            <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td><td className="py-2 px-1 font-medium truncate max-w-[150px] sm:max-w-[250px]" title={item.name}>{item.name}</td><td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
                     ))}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* PHIẾU TREO */}
-      <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
-        <h3 className="font-bold text-base sm:text-lg mb-4">Đối soát vận hành — Phiếu treo</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Buying-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.buying)}</p></div>
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Process-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.process)}</p></div>
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Import-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.import)}</p></div>
-          <div className="bg-red-50 p-3 rounded-lg border border-red-100"><p className="text-xs text-red-600 truncate font-semibold">Thiếu Waste-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-red-600">{formatUS(pendingStats.missingWaste)}</p></div>
-          <div className="bg-red-50 p-3 rounded-lg border border-red-100"><p className="text-xs text-red-600 truncate font-semibold">Thiếu Stock-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-red-600">{formatUS(pendingStats.missingStock)}</p></div>
-        </div>
-        <div className="overflow-y-auto overflow-x-auto max-h-[350px]">
-          <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="sticky top-0 bg-white shadow-sm z-10">
-              <tr className="text-gray-500 border-b border-gray-200">
-                <th className="pb-3 px-2 font-medium">Cửa hàng</th><th className="pb-3 px-2 font-medium">Ngày</th><th className="pb-3 px-2 font-medium">Loại phiếu</th><th className="pb-3 px-2 font-medium text-center">Qty</th><th className="pb-3 px-2 font-medium text-center">Số ngày treo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {agingTickets.map((ticket, idx) => {
-                const isCritical = ticket.aging > 5 && !ticket.isMissing;
-                let rowClass = 'text-gray-700 hover:bg-gray-50';
-                if (ticket.isMissing) rowClass = 'bg-red-100 text-red-800 font-bold border-l-4 border-l-red-600';
-                else if (isCritical) rowClass = 'bg-orange-50 text-orange-700 font-medium';
-
-                return (
-                  <tr key={idx} className={`border-b border-gray-100 ${rowClass}`}>
-                    <td className="py-2 px-2 text-xs sm:text-sm">{ticket.store}</td>
-                    <td className="py-2 px-2 text-xs sm:text-sm">{ticket.date}</td>
-                    <td className="py-2 px-2 text-xs sm:text-sm">{ticket.type}</td>
-                    <td className="py-2 px-2 text-center text-xs sm:text-sm">{ticket.qty === 'N/A' ? '-' : formatUS(ticket.qty)}</td>
-                    <td className="py-2 px-2 text-center flex items-center justify-center gap-1 text-xs sm:text-sm">
-                      {formatUS(ticket.aging)} {(isCritical || ticket.isMissing) && <AlertTriangle size={14} className={ticket.isMissing ? "text-red-600" : "text-orange-500"} />}
-                    </td>
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
+            <h3 className="font-bold text-base sm:text-lg mb-4">Đối soát vận hành — Phiếu treo</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Buying-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.buying)}</p></div>
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Process-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.process)}</p></div>
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Import-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.import)}</p></div>
+              <div className="bg-red-50 p-3 rounded-lg border border-red-100"><p className="text-xs text-red-600 truncate font-semibold">Thiếu Waste-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-red-600">{formatUS(pendingStats.missingWaste)}</p></div>
+              <div className="bg-red-50 p-3 rounded-lg border border-red-100"><p className="text-xs text-red-600 truncate font-semibold">Thiếu Stock-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-red-600">{formatUS(pendingStats.missingStock)}</p></div>
+            </div>
+            <div className="overflow-y-auto overflow-x-auto max-h-[350px]">
+              <table className="w-full text-sm text-left whitespace-nowrap">
+                <thead className="sticky top-0 bg-white shadow-sm z-10">
+                  <tr className="text-gray-500 border-b border-gray-200">
+                    <th className="pb-3 px-2 font-medium">Cửa hàng</th><th className="pb-3 px-2 font-medium">Ngày</th><th className="pb-3 px-2 font-medium">Loại phiếu</th><th className="pb-3 px-2 font-medium text-center">Qty</th><th className="pb-3 px-2 font-medium text-center">Số ngày treo</th>
                   </tr>
-                );
-              })}
-              {agingTickets.length === 0 && (
-                <tr><td colSpan={5} className="text-center py-4 text-gray-500">Tuyệt vời! Không có phiếu nào đang treo hoặc thiếu sót.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </thead>
+                <tbody>
+                  {agingTickets.map((ticket, idx) => {
+                    const isCritical = ticket.aging > 5 && !ticket.isMissing;
+                    let rowClass = 'text-gray-700 hover:bg-gray-50';
+                    if (ticket.isMissing) rowClass = 'bg-red-100 text-red-800 font-bold border-l-4 border-l-red-600';
+                    else if (isCritical) rowClass = 'bg-orange-50 text-orange-700 font-medium';
 
-      {/* BẢNG GAP */}
-      <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
-        <h3 className="font-bold text-base sm:text-lg mb-2">Bảng GAP tồn kho (GAP ≠ 0)</h3>
-        <div className="overflow-y-auto overflow-x-auto max-h-[500px] mt-2 relative">
-          <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="sticky top-0 bg-white z-10 shadow-sm">
-              <tr className="text-gray-500 border-b border-gray-200">
-                <th className="pb-3 px-2 font-medium">Group</th><th className="pb-3 px-2 font-medium">SKU</th><th className="pb-3 px-2 font-medium">Product-Name</th>
-                <th className="pb-3 px-2 font-medium text-right">Open</th><th className="pb-3 px-2 font-medium text-right">Process</th><th className="pb-3 px-2 font-medium text-right">Import</th><th className="pb-3 px-2 font-medium text-right">Export</th><th className="pb-3 px-2 font-medium text-right">Sales</th><th className="pb-3 px-2 font-medium text-right">Waste</th><th className="pb-3 px-2 font-medium text-right">Stock</th><th className="pb-3 px-2 font-bold text-right text-gray-800">GAP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {gapData.map((row, idx) => (
-                <tr key={idx} className="border-b border-gray-100 text-gray-700 hover:bg-gray-50">
-                  <td className="py-3 px-2 text-xs sm:text-sm">{row.group}</td><td className="py-3 px-2 text-xs sm:text-sm">{row.sku}</td><td className="py-3 px-2 font-medium truncate max-w-[150px] sm:max-w-[200px]" title={row.name}>{row.name}</td>
-                  <td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.open)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.process)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.import)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.export)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.sales)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.waste)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.stock)}</td>
-                  <td className={`py-3 px-2 text-right font-bold text-xs sm:text-sm ${row.gap < 0 ? 'text-red-600' : 'text-orange-500'}`}>{formatUS(row.gap)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    return (
+                      <tr key={idx} className={`border-b border-gray-100 ${rowClass}`}>
+                        <td className="py-2 px-2 text-xs sm:text-sm">{ticket.store}</td>
+                        <td className="py-2 px-2 text-xs sm:text-sm">{ticket.date}</td>
+                        <td className="py-2 px-2 text-xs sm:text-sm">{ticket.type}</td>
+                        <td className="py-2 px-2 text-center text-xs sm:text-sm">{ticket.qty === 'N/A' ? '-' : formatUS(ticket.qty)}</td>
+                        <td className="py-2 px-2 text-center flex items-center justify-center gap-1 text-xs sm:text-sm">
+                          {formatUS(ticket.aging)} {(isCritical || ticket.isMissing) && <AlertTriangle size={14} className={ticket.isMissing ? "text-red-600" : "text-orange-500"} />}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {agingTickets.length === 0 && (
+                    <tr><td colSpan={5} className="text-center py-4 text-gray-500">Tuyệt vời! Không có phiếu nào đang treo hoặc thiếu sót.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
+            <h3 className="font-bold text-base sm:text-lg mb-2">Bảng GAP tồn kho (GAP ≠ 0)</h3>
+            <div className="overflow-y-auto overflow-x-auto max-h-[500px] mt-2 relative">
+              <table className="w-full text-sm text-left whitespace-nowrap">
+                <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                  <tr className="text-gray-500 border-b border-gray-200">
+                    <th className="pb-3 px-2 font-medium">Group</th><th className="pb-3 px-2 font-medium">SKU</th><th className="pb-3 px-2 font-medium">Product-Name</th>
+                    <th className="pb-3 px-2 font-medium text-right">Open</th><th className="pb-3 px-2 font-medium text-right">Process</th><th className="pb-3 px-2 font-medium text-right">Import</th><th className="pb-3 px-2 font-medium text-right">Export</th><th className="pb-3 px-2 font-medium text-right">Sales</th><th className="pb-3 px-2 font-medium text-right">Waste</th><th className="pb-3 px-2 font-medium text-right">Stock</th><th className="pb-3 px-2 font-bold text-right text-gray-800">GAP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gapData.map((row, idx) => (
+                    <tr key={idx} className="border-b border-gray-100 text-gray-700 hover:bg-gray-50">
+                      <td className="py-3 px-2 text-xs sm:text-sm">{row.group}</td><td className="py-3 px-2 text-xs sm:text-sm">{row.sku}</td><td className="py-3 px-2 font-medium truncate max-w-[150px] sm:max-w-[200px]" title={row.name}>{row.name}</td>
+                      <td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.open)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.process)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.import)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.export)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.sales)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.waste)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.stock)}</td>
+                      <td className={`py-3 px-2 text-right font-bold text-xs sm:text-sm ${row.gap < 0 ? 'text-red-600' : 'text-orange-500'}`}>{formatUS(row.gap)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+
+      {/* =========================================
+          TAB 2: MARKETING (PROMOTION)
+      ========================================= */}
+      {activeTab === 'Marketing' && (
+        <>
+          {/* MARKETING SCORECARDS */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8">
+            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Doanh thu Khuyến mãi</p>
+              <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-blue-600 truncate" title={formatUS(promoRev)}>{formatUS(promoRev)}</p>{renderPoP(promoRev, prevStats.promoRev, false)}</div>
+            </div>
+            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Tổng tiền Giảm giá (Discount)</p>
+              <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-orange-500 truncate" title={formatUS(promoDisc)}>{formatUS(promoDisc)}</p>{renderPoP(promoDisc, prevStats.promoDisc, true)}</div>
+            </div>
+            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Số lượng SP Khuyến mãi</p>
+              <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-gray-800 truncate">{formatUS(promoQty)}</p>{renderPoP(promoQty, prevStats.promoQty, false)}</div>
+            </div>
+            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Tỷ trọng DT Khuyến mãi / Tổng DT</p>
+              <div className="flex items-baseline mt-2">
+                <p className="text-xl sm:text-3xl font-bold text-gray-800 truncate">
+                  {netRevenue > 0 ? formatUS((promoRev / netRevenue) * 100) : 0}%
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* MARKETING CHARTS */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Top 5 CTKM theo Số Lượng Bán</h3>
+              <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
+                <div className="absolute inset-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topPromoByQty} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                      <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f3f4f6'}} />
+                      <Bar dataKey="qty" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={24} name="Số lượng" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Top 5 CTKM theo Doanh Thu Thuần</h3>
+              <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
+                <div className="absolute inset-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topPromoByRev} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                      <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f3f4f6'}} />
+                      <Bar dataKey="gross" fill="#10b981" radius={[0, 4, 4, 0]} barSize={24} name="Doanh thu" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* BẢNG CHI TIẾT PROMOTION */}
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
+            <h3 className="font-bold text-base sm:text-lg mb-2">Bảng Chi Tiết Chương Trình Khuyến Mãi</h3>
+            <p className="text-xs text-gray-500 mb-4">*Sắp xếp theo Doanh thu thuần (Gross-Sales) giảm dần</p>
+            <div className="overflow-y-auto overflow-x-auto max-h-[500px] mt-2 relative">
+              <table className="w-full text-sm text-left whitespace-nowrap">
+                <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                  <tr className="text-gray-500 border-b border-gray-200">
+                    <th className="pb-3 px-2 font-medium">Tên Chương Trình (Type-Info)</th>
+                    <th className="pb-3 px-2 font-medium text-right">Số lượng (Qty)</th>
+                    <th className="pb-3 px-2 font-medium text-right">Doanh số (Sales)</th>
+                    <th className="pb-3 px-2 font-medium text-right">Giảm giá (Discount)</th>
+                    <th className="pb-3 px-2 font-bold text-right text-gray-800">Doanh thu thuần</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {promoList.map((row, idx) => (
+                    <tr key={idx} className="border-b border-gray-100 text-gray-700 hover:bg-gray-50">
+                      <td className="py-3 px-2 font-medium text-xs sm:text-sm truncate max-w-[200px]" title={row.name}>{row.name}</td>
+                      <td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.qty)}</td>
+                      <td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.sales)}</td>
+                      <td className="py-3 px-2 text-right text-xs sm:text-sm text-orange-500">{formatUS(row.discount)}</td>
+                      <td className="py-3 px-2 text-right font-bold text-xs sm:text-sm text-blue-600">{formatUS(row.gross)}</td>
+                    </tr>
+                  ))}
+                  {promoList.length === 0 && (
+                    <tr><td colSpan={5} className="text-center py-6 text-gray-500">Không có dữ liệu Khuyến mãi trong khoảng thời gian này.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
     </div>
   );
