@@ -3,22 +3,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
 import { AreaChart, Area, PieChart, Pie, Cell, ComposedChart, Line, LineChart, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export default function DashboardClient({ fileNames }: { fileNames: string[] }) {
   const [rawData, setRawData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // STATE ĐIỀU HƯỚNG TAB
+  // TAB NAVIGATION
   const [activeTab, setActiveTab] = useState('Overview');
 
-  // STATE BỘ LỌC
+  // SLICER STATES
   const [storeFilter, setStoreFilter] = useState('All');
   const [groupFilter, setGroupFilter] = useState('All');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // TẢI DATA TỪ TỆP TĨNH
+  // FETCH DATA
   useEffect(() => {
     async function loadData() {
       let allData: any[] = [];
@@ -31,7 +31,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         }
         setRawData(allData);
       } catch (error) {
-        console.error("Lỗi tải data:", error);
+        console.error("Error loading data:", error);
       } finally {
         setIsLoading(false);
       }
@@ -39,7 +39,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     if (fileNames.length > 0) loadData(); else setIsLoading(false);
   }, [fileNames]);
 
-  // HÀM PHỤ TRỢ
+  // HELPER FUNCTIONS
   const clean = (val: any) => (val || '').toString().trim();
   const parseNum = (val: any) => parseFloat(clean(val).replace(/,/g, '')) || 0;
   const formatUS = (val: any) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseNum(val));
@@ -68,18 +68,18 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     return uniqueGroups.sort((a: string, b: string) => a.localeCompare(b));
   }, [rawData]);
 
-  // TIỀN LỌC DỮ LIỆU
+  // PRE-FILTER DATA
   const baseFilteredData = useMemo(() => {
     return rawData.filter(row => {
       const store = clean(row['Store-Name']);
-      const groupName = clean(row['Group']) || 'Khác';
+      const groupName = clean(row['Group']) || 'Others';
       if (storeFilter !== 'All' && store !== storeFilter) return false;
       if (groupFilter !== 'All' && groupName !== groupFilter) return false;
       return true;
     });
   }, [rawData, storeFilter, groupFilter]);
 
-  // XỬ LÝ LÕI DỮ LIỆU & TÍNH TOÁN SO SÁNH CHU KỲ (PoP)
+  // CORE DATA PROCESSING & PoP CALCULATION
   const { 
     netRevenue, totalBills, aov, discountRateTB, wasteQty, cancelRate, 
     trendData, paymentData, topSalesByGroup, topWasteByGroup, 
@@ -127,7 +127,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
     baseFilteredData.forEach(row => {
       const store = clean(row['Store-Name']);
-      const groupName = clean(row['Group']) || 'Khác';
+      const groupName = clean(row['Group']) || 'Others';
       const sku = clean(row['SKU']);
       const name = clean(row['Product-Name']);
       const tType = clean(row['Ticket-Type']);
@@ -145,7 +145,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const isCurrentPeriod = rowTime >= startTime && rowTime <= endTime;
       const isPrevPeriod = rowTime >= prevStartTime && rowTime <= prevEndTime;
 
-      // --- 1. GHI NHẬN KỲ TRƯỚC (PoP) ---
+      // 1. PREVIOUS PERIOD LOGIC
       if (isPrevPeriod) {
         if (tType === 'Sales') { prevRev += gross; prevTotalDiscount += disc; }
         if (tType === 'Count-Bills') prevCountBills += qty;
@@ -158,7 +158,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         }
       }
 
-      // --- 2. BẢNG GAP ---
+      // 2. GAP LOGIC
       if (sku) {
         const key = `${groupName}_${sku}`;
         if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open:0, process:0, import:0, export:0, sales:0, waste:0, stock:0, gap:0 };
@@ -175,14 +175,13 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         }
       }
 
-      // --- 3. GHI NHẬN KỲ HIỆN TẠI ---
+      // 3. CURRENT PERIOD LOGIC
       if (isCurrentPeriod) {
         fCount++;
         activeDates.add(dateStr);
         activeStores.add(store);
 
         const day = dateStr.split('-')[0] || 'N/A';
-        // Bổ sung promoRevenue vào trendMap để vẽ Line chart
         if (!trendMap[day]) trendMap[day] = { day, revenue: 0, target: 0, discountAmt: 0, waste: 0, countBill: 0, cancel: 0, promoRevenue: 0 };
 
         if (tType === 'Sales') {
@@ -196,7 +195,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         if (tType === 'Count-Bills') { countBills += qty; trendMap[day].countBill += qty; }
         if (tType === 'Cancel') { cancelBills += qty; trendMap[day].cancel += qty; }
         if (tType === 'Target') trendMap[day].target += salesVal;
-        if (tType === 'Payment') paymentMap[tInfo || 'Khác'] = (paymentMap[tInfo || 'Khác'] || 0) + salesVal;
+        if (tType === 'Payment') paymentMap[tInfo || 'Others'] = (paymentMap[tInfo || 'Others'] || 0) + salesVal;
 
         if (tType === 'Waste') {
           waste += qty; trendMap[day].waste += qty;
@@ -209,12 +208,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
         // PROMOTION
         if (tType === 'Promotion') {
-          const pName = tInfo || 'Khác';
+          const pName = tInfo || 'Others';
           mktPromoRev += gross;
           mktPromoDisc += disc;
           mktPromoQty += qty;
           
-          // Nạp doanh thu KM vào chart theo ngày
           trendMap[day].promoRevenue += gross;
 
           if (!promoMap[pName]) {
@@ -226,7 +224,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           promoMap[pName].gross += gross;
         }
 
-        // PHIẾU TREO
+        // PENDING TICKETS
         if (tType === 'Ticket') { 
           if (tInfo === 'Waste-Ticket' && qty > 0) {
             if (!wasteTrackMap[store]) wasteTrackMap[store] = {};
@@ -256,7 +254,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
     const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ group, items: Object.values(salesMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ group, items: Object.values(wasteMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
-    const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Khác').sort((a, b) => a.group.localeCompare(b.group)); 
+    const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Others').sort((a, b) => a.group.localeCompare(b.group)); 
 
     const allTickets = Object.values(ticketAgg).filter(t => t.qty > 0);
     const missingTicketsList: any[] = [];
@@ -265,11 +263,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         const tDate = parseDataDate(dt) || today;
         const agingDays = Math.floor((today - tDate) / 86400000);
         if (!wasteTrackMap[st] || !wasteTrackMap[st][dt]) {
-          missingTicketsList.push({ date: dt, store: st, type: '⚠️ THIẾU WASTE-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true });
+          missingTicketsList.push({ date: dt, store: st, type: 'MISSING WASTE-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true });
           pStats.missingWaste++;
         }
         if (!stockTrackMap[st] || !stockTrackMap[st][dt]) {
-          missingTicketsList.push({ date: dt, store: st, type: '⚠️ THIẾU STOCK-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true });
+          missingTicketsList.push({ date: dt, store: st, type: 'MISSING STOCK-TICKET', qty: 'N/A', aging: agingDays > 0 ? agingDays : 0, isMissing: true });
           pStats.missingStock++;
         }
       });
@@ -281,7 +279,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       return b.aging - a.aging;
     });
 
-    // CHỐT DATA MARKETING (Cắt thành Top 10)
+    // MARKETING TOP 10
     const mktPromoList = Object.values(promoMap).sort((a, b) => b.gross - a.gross); 
     const mktTopByQty = [...mktPromoList].sort((a, b) => b.qty - a.qty).slice(0, 10);
     const mktTopByRev = [...mktPromoList].sort((a, b) => b.gross - a.gross).slice(0, 10);
@@ -307,7 +305,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     };
   }, [baseFilteredData, startDate, endDate, rawData]);
 
-  // HÀM RENDER CHỈ SỐ SO SÁNH (PoP)
   const renderPoP = (current: number, prev: number, inverseColor: boolean = false) => {
     if (!prev || prev === 0) return <span className="text-[10px] sm:text-xs text-gray-400 ml-2 font-normal">--</span>; 
     if (current === prev) return null; 
@@ -332,7 +329,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <Loader2 className="w-10 h-10 animate-spin text-blue-500 mb-4" />
-        <p className="font-medium text-lg">Đang đọc dữ liệu vận hành...</p>
+        <p className="font-medium text-lg">Loading operations data...</p>
       </div>
     );
   }
@@ -343,45 +340,45 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       {/* GLOBAL SLICERS */}
       <div className="mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-50">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-          <h1 className="text-lg md:text-xl font-bold text-gray-900">Dashboard Center</h1>
+          <h1 className="text-lg md:text-xl font-bold text-gray-900">Operations Dashboard</h1>
           <div className="flex bg-gray-100 p-1 rounded-lg">
             <button 
               onClick={() => setActiveTab('Overview')} 
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'Overview' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              Vận hành (Overview)
+              Overview
             </button>
             <button 
               onClick={() => setActiveTab('Marketing')} 
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'Marketing' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              Khuyến mãi (Marketing)
+              Marketing
             </button>
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full">
           <select value={storeFilter} onChange={e => setStoreFilter(e.target.value)} className="border border-gray-300 rounded-md p-2 text-sm bg-white cursor-pointer hover:border-blue-500 w-full md:w-auto">
-            <option value="All">-- Tất cả Cửa hàng --</option>
+            <option value="All">-- All Stores --</option>
             {stores.map((s: any) => <option key={s} value={s}>{s}</option>)}
           </select>
           <div className="flex flex-row items-center justify-between space-x-2 border border-gray-300 rounded-md bg-white p-1 w-full md:w-auto overflow-hidden">
-            <span className="text-sm text-gray-500 pl-2 hidden sm:inline">Từ:</span>
+            <span className="text-sm text-gray-500 pl-2 hidden sm:inline">From:</span>
             <input type="date" value={startDate} max={endDate || undefined} onChange={e => setStartDate(e.target.value)} className="p-1 text-sm outline-none bg-transparent text-gray-700 cursor-pointer w-full"/>
             <span className="text-sm text-gray-400">→</span>
-            <span className="text-sm text-gray-500 hidden sm:inline">Đến:</span>
+            <span className="text-sm text-gray-500 hidden sm:inline">To:</span>
             <input type="date" value={endDate} min={startDate || undefined} onChange={e => setEndDate(e.target.value)} className="p-1 text-sm outline-none bg-transparent text-gray-700 cursor-pointer w-full pr-2"/>
           </div>
           <select value={groupFilter} onChange={e => setGroupFilter(e.target.value)} className="border border-gray-300 rounded-md p-2 text-sm bg-white cursor-pointer hover:border-blue-500 w-full md:w-auto">
-            <option value="All">-- Tất cả Nhóm --</option>
+            <option value="All">-- All Groups --</option>
             {groups.map((g: any) => <option key={g} value={g}>{g}</option>)}
           </select>
           <div className="md:ml-auto flex items-center justify-center text-sm text-gray-500 font-medium bg-blue-50 text-blue-600 px-3 py-2 rounded-md w-full md:w-auto">
-            Đang lọc: {formatUS(filteredCount)} records
+            Filtering: {formatUS(filteredCount)} records
           </div>
         </div>
       </div>
 
       {/* =========================================
-          TAB 1: OVERVIEW (VẬN HÀNH)
+          TAB 1: OVERVIEW
       ========================================= */}
       {activeTab === 'Overview' && (
         <>
@@ -414,7 +411,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Doanh thu theo ngày</h3>
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Daily Revenue</h3>
               <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
@@ -423,14 +420,14 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                       <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
                       <YAxis width={40} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
                       <Tooltip formatter={(value: any) => formatUS(value)} />
-                      <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fill="#eff6ff" name="Doanh thu" />
+                      <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fill="#eff6ff" name="Revenue" />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
               </div>
             </div>
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Cơ cấu thanh toán</h3>
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Payment Methods</h3>
               <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6">
                  <div className="h-48 sm:h-64 w-full md:w-1/2 shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
@@ -459,7 +456,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Discount rate theo ngày (%)</h3>
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Daily Discount Rate (%)</h3>
               <div className="flex-1 w-full relative min-h-[250px]">
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
@@ -475,7 +472,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
               </div>
             </div>
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste Qty theo ngày</h3>
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Daily Waste Qty</h3>
               <div className="flex-1 w-full relative min-h-[250px]">
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
@@ -494,12 +491,12 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="font-bold mb-4 text-sm sm:text-base">Top 5 SP bán chạy (Theo Group)</h3>
+              <h3 className="font-bold mb-4 text-sm sm:text-base">Top 5 Best-Selling Products (By Group)</h3>
               <div className="overflow-y-auto overflow-x-auto max-h-[400px]">
                 <table className="w-full text-sm text-left whitespace-nowrap">
                   <thead className="sticky top-0 bg-white shadow-sm z-10">
                     <tr className="text-gray-500 border-b border-gray-100">
-                      <th className="pb-2 font-medium px-1">SKU</th><th className="pb-2 font-medium px-1">Sản phẩm</th><th className="pb-2 font-medium px-1 text-right">Qty</th>
+                      <th className="pb-2 font-medium px-1">SKU</th><th className="pb-2 font-medium px-1">Product</th><th className="pb-2 font-medium px-1 text-right">Qty</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -518,12 +515,12 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
               </div>
             </div>
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="font-bold mb-4 text-sm sm:text-base">Top 5 SP hao hụt (Theo Group)</h3>
+              <h3 className="font-bold mb-4 text-sm sm:text-base">Top 5 Waste Products (By Group)</h3>
               <div className="overflow-y-auto overflow-x-auto max-h-[400px]">
                 <table className="w-full text-sm text-left whitespace-nowrap">
                   <thead className="sticky top-0 bg-white shadow-sm z-10">
                     <tr className="text-gray-500 border-b border-gray-100">
-                      <th className="pb-2 font-medium px-1">SKU</th><th className="pb-2 font-medium px-1">Sản phẩm</th><th className="pb-2 font-medium px-1 text-right">Qty</th>
+                      <th className="pb-2 font-medium px-1">SKU</th><th className="pb-2 font-medium px-1">Product</th><th className="pb-2 font-medium px-1 text-right">Qty</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -544,19 +541,19 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           </div>
 
           <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
-            <h3 className="font-bold text-base sm:text-lg mb-4">Đối soát vận hành — Phiếu treo</h3>
+            <h3 className="font-bold text-base sm:text-lg mb-4">Operation Reconciliation — Pending Tickets</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
               <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Buying-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.buying)}</p></div>
               <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Process-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.process)}</p></div>
               <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Import-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.import)}</p></div>
-              <div className="bg-red-50 p-3 rounded-lg border border-red-100"><p className="text-xs text-red-600 truncate font-semibold">Thiếu Waste-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-red-600">{formatUS(pendingStats.missingWaste)}</p></div>
-              <div className="bg-red-50 p-3 rounded-lg border border-red-100"><p className="text-xs text-red-600 truncate font-semibold">Thiếu Stock-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-red-600">{formatUS(pendingStats.missingStock)}</p></div>
+              <div className="bg-red-50 p-3 rounded-lg border border-red-100"><p className="text-xs text-red-600 truncate font-semibold">Missing Waste-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-red-600">{formatUS(pendingStats.missingWaste)}</p></div>
+              <div className="bg-red-50 p-3 rounded-lg border border-red-100"><p className="text-xs text-red-600 truncate font-semibold">Missing Stock-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-red-600">{formatUS(pendingStats.missingStock)}</p></div>
             </div>
             <div className="overflow-y-auto overflow-x-auto max-h-[350px]">
               <table className="w-full text-sm text-left whitespace-nowrap">
                 <thead className="sticky top-0 bg-white shadow-sm z-10">
                   <tr className="text-gray-500 border-b border-gray-200">
-                    <th className="pb-3 px-2 font-medium">Cửa hàng</th><th className="pb-3 px-2 font-medium">Ngày</th><th className="pb-3 px-2 font-medium">Loại phiếu</th><th className="pb-3 px-2 font-medium text-center">Qty</th><th className="pb-3 px-2 font-medium text-center">Số ngày treo</th>
+                    <th className="pb-3 px-2 font-medium">Store</th><th className="pb-3 px-2 font-medium">Date</th><th className="pb-3 px-2 font-medium">Ticket Type</th><th className="pb-3 px-2 font-medium text-center">Qty</th><th className="pb-3 px-2 font-medium text-center">Aging Days</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -573,13 +570,13 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                         <td className="py-2 px-2 text-xs sm:text-sm">{ticket.type}</td>
                         <td className="py-2 px-2 text-center text-xs sm:text-sm">{ticket.qty === 'N/A' ? '-' : formatUS(ticket.qty)}</td>
                         <td className="py-2 px-2 text-center flex items-center justify-center gap-1 text-xs sm:text-sm">
-                          {formatUS(ticket.aging)} {(isCritical || ticket.isMissing) && <AlertTriangle size={14} className={ticket.isMissing ? "text-red-600" : "text-orange-500"} />}
+                          {formatUS(ticket.aging)}
                         </td>
                       </tr>
                     );
                   })}
                   {agingTickets.length === 0 && (
-                    <tr><td colSpan={5} className="text-center py-4 text-gray-500">Tuyệt vời! Không có phiếu nào đang treo hoặc thiếu sót.</td></tr>
+                    <tr><td colSpan={5} className="text-center py-4 text-gray-500">Great! No pending or missing tickets.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -587,7 +584,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           </div>
 
           <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
-            <h3 className="font-bold text-base sm:text-lg mb-2">Bảng GAP tồn kho (GAP ≠ 0)</h3>
+            <h3 className="font-bold text-base sm:text-lg mb-2">Inventory GAP Table (GAP ≠ 0)</h3>
             <div className="overflow-y-auto overflow-x-auto max-h-[500px] mt-2 relative">
               <table className="w-full text-sm text-left whitespace-nowrap">
                 <thead className="sticky top-0 bg-white z-10 shadow-sm">
@@ -613,25 +610,25 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
 
       {/* =========================================
-          TAB 2: MARKETING (PROMOTION)
+          TAB 2: MARKETING
       ========================================= */}
       {activeTab === 'Marketing' && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
             <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Doanh thu Khuyến mãi</p>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Promotion Revenue</p>
               <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-blue-600 truncate" title={formatUS(promoRev)}>{formatUS(promoRev)}</p>{renderPoP(promoRev, prevStats.promoRev, false)}</div>
             </div>
             <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Tổng tiền Giảm giá (Discount)</p>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Total Discount</p>
               <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-orange-500 truncate" title={formatUS(promoDisc)}>{formatUS(promoDisc)}</p>{renderPoP(promoDisc, prevStats.promoDisc, true)}</div>
             </div>
             <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Số lượng SP Khuyến mãi</p>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Promotion Qty</p>
               <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-gray-800 truncate">{formatUS(promoQty)}</p>{renderPoP(promoQty, prevStats.promoQty, false)}</div>
             </div>
             <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Tỷ trọng DT Khuyến mãi / Tổng DT</p>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Promo / Total Revenue (%)</p>
               <div className="flex items-baseline mt-2">
                 <p className="text-xl sm:text-3xl font-bold text-gray-800 truncate">
                   {netRevenue > 0 ? formatUS((promoRev / netRevenue) * 100) : 0}%
@@ -640,9 +637,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             </div>
           </div>
 
-          {/* BIỂU ĐỒ TƯƠNG QUAN DOANH THU & KHUYẾN MÃI THEO NGÀY */}
           <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full mb-6">
-            <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Tương quan Tổng Doanh Thu & Doanh Thu Khuyến Mãi (Theo Ngày)</h3>
+            <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Revenue vs Promotion Revenue (Daily)</h3>
             <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[350px]">
               <div className="absolute inset-0">
                 <ResponsiveContainer width="100%" height="100%">
@@ -651,20 +647,17 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                     <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
                     <YAxis width={40} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
                     <Tooltip formatter={(value: any) => formatUS(value)} />
-                    {/* Area Xanh dương cho Tổng Doanh thu */}
-                    <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="#eff6ff" name="Tổng Doanh thu" />
-                    {/* Area Xanh ngọc cho Doanh thu Khuyến mãi (đè lên trên) */}
-                    <Area type="monotone" dataKey="promoRevenue" stroke="#10b981" strokeWidth={2} fill="#d1fae5" name="DT Khuyến mãi" />
+                    <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="#eff6ff" name="Total Revenue" />
+                    <Area type="monotone" dataKey="promoRevenue" stroke="#10b981" strokeWidth={2} fill="#d1fae5" name="Promo Revenue" />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </div>
           </div>
 
-          {/* TOP 10 KHUYẾN MÃI */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Top 10 CTKM theo Số Lượng Bán</h3>
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Top 10 Promotions by Qty</h3>
               <div className="flex-1 w-full relative min-h-[300px] sm:min-h-[400px]">
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
@@ -673,7 +666,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                       <XAxis type="number" hide />
                       <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
                       <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f3f4f6'}} />
-                      <Bar dataKey="qty" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} name="Số lượng" />
+                      <Bar dataKey="qty" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} name="Qty" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -681,7 +674,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             </div>
 
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Top 10 CTKM theo Doanh Thu Thuần</h3>
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Top 10 Promotions by Revenue</h3>
               <div className="flex-1 w-full relative min-h-[300px] sm:min-h-[400px]">
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
@@ -690,7 +683,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                       <XAxis type="number" hide />
                       <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
                       <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f3f4f6'}} />
-                      <Bar dataKey="gross" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} name="Doanh thu" />
+                      <Bar dataKey="gross" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} name="Revenue" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -698,19 +691,18 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             </div>
           </div>
 
-          {/* BẢNG CHI TIẾT PROMOTION */}
           <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
-            <h3 className="font-bold text-base sm:text-lg mb-2">Bảng Chi Tiết Chương Trình Khuyến Mãi</h3>
-            <p className="text-xs text-gray-500 mb-4">*Sắp xếp theo Doanh thu thuần (Gross-Sales) giảm dần</p>
+            <h3 className="font-bold text-base sm:text-lg mb-2">Promotion Details Table</h3>
+            <p className="text-xs text-gray-500 mb-4">*Sorted by Gross-Sales (descending)</p>
             <div className="overflow-y-auto overflow-x-auto max-h-[500px] mt-2 relative">
               <table className="w-full text-sm text-left whitespace-nowrap">
                 <thead className="sticky top-0 bg-white z-10 shadow-sm">
                   <tr className="text-gray-500 border-b border-gray-200">
-                    <th className="pb-3 px-2 font-medium">Tên Chương Trình (Type-Info)</th>
-                    <th className="pb-3 px-2 font-medium text-right">Số lượng (Qty)</th>
-                    <th className="pb-3 px-2 font-medium text-right">Doanh số (Sales)</th>
-                    <th className="pb-3 px-2 font-medium text-right">Giảm giá (Discount)</th>
-                    <th className="pb-3 px-2 font-bold text-right text-gray-800">Doanh thu thuần</th>
+                    <th className="pb-3 px-2 font-medium">Promotion Name (Type-Info)</th>
+                    <th className="pb-3 px-2 font-medium text-right">Qty</th>
+                    <th className="pb-3 px-2 font-medium text-right">Sales</th>
+                    <th className="pb-3 px-2 font-medium text-right">Discount</th>
+                    <th className="pb-3 px-2 font-bold text-right text-gray-800">Gross Sales</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -724,7 +716,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                     </tr>
                   ))}
                   {promoList.length === 0 && (
-                    <tr><td colSpan={5} className="text-center py-6 text-gray-500">Không có dữ liệu Khuyến mãi trong khoảng thời gian này.</td></tr>
+                    <tr><td colSpan={5} className="text-center py-6 text-gray-500">No promotion data available for this period.</td></tr>
                   )}
                 </tbody>
               </table>
