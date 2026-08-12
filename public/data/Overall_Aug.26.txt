@@ -11819,8 +11819,7 @@ Date|Month|Ticket-Type|Pos-ID|Outlet-Code|Store-Code|Store-Name|Type-Info|SKU|Pr
 03-Aug-26|Aug.26|Target|115178|10654|ONLINE|BreadTalk|Sales|||||||83415274.60||||||
 03-Aug-26|Aug.26|Target|117140|10646|SAV|BreadTalk Sun Avenue|Sales|||||||14136692.36||||||
 03-Aug-26|Aug.26|Mistake|117136|10650|MNM|BreadTalk Menas Mall|Tác Phong Làm Việc||||||1|0|0|0|0|0|Giám Sát Camera|Đi trễ 
-03-Aug-26|Aug.26|Mistake|117138|10645|NZE|BreadTalk Nowzone|Tác Phong Làm Việc||||||1|0|0|0|0|0|Giám Sát Camera|"Mang Cross
-"
+03-Aug-26|Aug.26|Mistake|117138|10645|NZE|BreadTalk Nowzone|Tác Phong Làm Việc||||||1|0|0|0|0|0|Giám Sát Camera|Mang Cross
 03-Aug-26|Aug.26|Mistake|117138|10645|NZE|BreadTalk Nowzone|Tác Phong Làm Việc||||||1|0|0|0|0|0|Giám Sát Camera|Đi trễ 
 03-Aug-26|Aug.26|Mistake|117142|10623|SGC|BreadTalk Saigon Centre|Chất Lượng Sản Phẩm||||||1|0|0|0|0|0|Fanpage|Bánh mì khô cứng
 03-Aug-26|Aug.26|Sales|117147|10640|VGP|BreadTalk Vinhomes Grand Park|Sales|3550005|Bánh Bông Lan Cuộn Trà Xanh (SR Green Tea Sliced)|Dry Cake|DryCake|Cake|1|35000|0|0|35000|2593.0||
