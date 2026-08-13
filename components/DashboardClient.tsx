@@ -2,26 +2,25 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
-import { AreaChart, Area, PieChart, Pie, Cell, ComposedChart, Line, LineChart, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Loader2, Star, AlertCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+
+// IMPORT 3 TABS (GIAO DIỆN)
+import OverviewTab from './tabs/OverviewTab';
+import MarketingTab from './tabs/MarketingTab';
+import ReviewsTab from './tabs/ReviewsTab';
 
 export default function DashboardClient({ fileNames }: { fileNames: string[] }) {
   const [rawData, setRawData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // TAB NAVIGATION
   const [activeTab, setActiveTab] = useState('Overview');
 
-  // SLICER STATES
   const [storeFilter, setStoreFilter] = useState('All');
   const [groupFilter, setGroupFilter] = useState('All');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  
-  // REVIEWS SOURCE SLICER
   const [reviewFilter, setReviewFilter] = useState('All');
 
-  // FETCH DATA
   useEffect(() => {
     async function loadData() {
       let allData: any[] = [];
@@ -42,7 +41,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     if (fileNames.length > 0) loadData(); else setIsLoading(false);
   }, [fileNames]);
 
-  // HELPER FUNCTIONS
   const clean = (val: any) => (val || '').toString().trim();
   const parseNum = (val: any) => parseFloat(clean(val).replace(/,/g, '')) || 0;
   const formatUS = (val: any) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseNum(val));
@@ -64,14 +62,12 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).getTime();
   };
 
-  // DROPDOWN OPTIONS
   const stores = useMemo(() => Array.from(new Set(rawData.map(d => clean(d['Store-Name'])).filter(Boolean))), [rawData]);
   const groups = useMemo(() => {
     const uniqueGroups = Array.from(new Set(rawData.map(d => clean(d['Group'])).filter(Boolean)));
     return uniqueGroups.sort((a: string, b: string) => a.localeCompare(b));
   }, [rawData]);
 
-  // PRE-FILTER DATA
   const baseFilteredData = useMemo(() => {
     return rawData.filter(row => {
       const store = clean(row['Store-Name']);
@@ -82,23 +78,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     });
   }, [rawData, storeFilter, groupFilter]);
 
-  // CORE DATA PROCESSING
-  const { 
-    revenue, revAfterDisc, commissions, vatValue, royalty, trueNetRevenue, 
-    totalBills, aov, discountRateTB, wasteQty, wasteRatio, cancelRate, 
-    trendData, paymentData, topSalesByGroup, topWasteByGroup, 
-    wasteByStoreData, wasteByGroupData, cancelReasonData,
-    agingTickets, pendingStats, gapData, filteredCount, prevStats,
-    promoRev, promoDisc, promoQty, promoList, topPromoByQty, topPromoByRev,
-    avgMapsRating, avgCusRating, totalReviews, reviewList, 
-    mapsDistData, cusDistData, totalMistakes, mistakeList, mistakeCatDist
-  } = useMemo(() => {
-    
-    // CURRENT PERIOD VARS
+  // NƠI XỬ LÝ TOÀN BỘ LOGIC (BỘ NÃO)
+  const calculatedData = useMemo(() => {
     let curRev = 0, curRevAfterDisc = 0, curCommissions = 0, curVat = 0;
     let totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0, salesQty = 0;
     
-    // PREVIOUS PERIOD VARS
     let prevRev = 0, prevRevAfterDisc = 0, prevCommissions = 0, prevVat = 0;
     let prevTotalDiscount = 0, prevCountBills = 0, prevCancelBills = 0, prevWaste = 0, prevSalesQty = 0;
 
@@ -389,24 +373,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     };
   }, [baseFilteredData, startDate, endDate, rawData, reviewFilter]);
 
+  // HÀM RENDER CHỈ SỐ SO SÁNH (PoP) TRUYỀN XUỐNG TABS
   const renderPoP = (current: number, prev: number, inverseColor: boolean = false) => {
     if (!prev || prev === 0) return <span className="text-[10px] sm:text-xs text-gray-400 ml-2 font-normal">--</span>; 
     if (current === prev) return null; 
-    
     const changePercent = ((current - prev) / prev) * 100;
     const isPositive = changePercent > 0;
-    
-    const colorClass = isPositive 
-      ? (inverseColor ? 'text-red-500' : 'text-green-500') 
-      : (inverseColor ? 'text-green-500' : 'text-red-500');
-      
+    const colorClass = isPositive ? (inverseColor ? 'text-red-500' : 'text-green-500') : (inverseColor ? 'text-green-500' : 'text-red-500');
     const arrow = isPositive ? '▲' : '▼';
-    
-    return (
-      <span className={`text-[10px] sm:text-xs font-semibold ml-2 ${colorClass}`}>
-        {arrow} {Math.abs(changePercent).toFixed(1)}%
-      </span>
-    );
+    return <span className={`text-[10px] sm:text-xs font-semibold ml-2 ${colorClass}`}>{arrow} {Math.abs(changePercent).toFixed(1)}%</span>;
   };
 
   if (isLoading) {
@@ -421,26 +396,14 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   return (
     <div className="p-3 sm:p-6 bg-[#f8f9fa] min-h-screen font-sans text-gray-800">
       
-      {/* GLOBAL SLICERS */}
+      {/* HEADER & GLOBAL SLICERS */}
       <div className="mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-50">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
           <h1 className="text-lg md:text-xl font-bold text-gray-900">Operations Dashboard</h1>
           <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto w-full sm:w-auto">
-            <button 
-              onClick={() => setActiveTab('Overview')} 
-              className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Overview' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              Overview
-            </button>
-            <button 
-              onClick={() => setActiveTab('Marketing')} 
-              className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Marketing' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              Marketing
-            </button>
-            <button 
-              onClick={() => setActiveTab('Reviews')} 
-              className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Reviews' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              Reviews & Mistakes
-            </button>
+            <button onClick={() => setActiveTab('Overview')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Overview' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Overview</button>
+            <button onClick={() => setActiveTab('Marketing')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Marketing' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Marketing</button>
+            <button onClick={() => setActiveTab('Reviews')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Reviews' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Reviews & Mistakes</button>
           </div>
         </div>
 
@@ -470,654 +433,16 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           )}
 
           <div className="md:ml-auto flex items-center justify-center text-sm text-gray-500 font-medium bg-gray-50 px-3 py-2 rounded-md w-full md:w-auto">
-            Filtering: {formatUS(filteredCount)} records
+            Filtering: {formatUS(calculatedData.filteredCount)} records
           </div>
         </div>
       </div>
 
-      {/* =========================================
-          TAB 1: OVERVIEW
-      ========================================= */}
-      {activeTab === 'Overview' && (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
-            {/* ROW 1: FINANCIALS */}
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Revenue</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate" title={formatUS(revenue)}>{formatUS(revenue)}</p>{renderPoP(revenue, prevStats.revenue, false)}</div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Revenue after discount</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-blue-600 truncate" title={formatUS(revAfterDisc)}>{formatUS(revAfterDisc)}</p>{renderPoP(revAfterDisc, prevStats.revAfterDisc, false)}</div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Commissions</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate" title={formatUS(commissions)}>{formatUS(commissions)}</p>{renderPoP(commissions, prevStats.commissions, true)}</div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">VAT</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate" title={formatUS(vatValue)}>{formatUS(vatValue)}</p>{renderPoP(vatValue, prevStats.vatValue, true)}</div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Royalty (5%)</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate" title={formatUS(royalty)}>{formatUS(royalty)}</p>{renderPoP(royalty, prevStats.royalty, true)}</div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Net revenue</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-green-600 truncate" title={formatUS(trueNetRevenue)}>{formatUS(trueNetRevenue)}</p>{renderPoP(trueNetRevenue, prevStats.trueNetRevenue, false)}</div>
-              <p className="text-[10px] text-gray-400 mt-1 italic">*Excluding OPEX & COGS</p>
-            </div>
-
-            {/* ROW 2: OPERATIONS */}
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Count-Bills</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(totalBills)}</p>{renderPoP(totalBills, prevStats.totalBills, false)}</div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">AOV</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(aov)}</p>{renderPoP(aov, prevStats.aov, false)}</div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Discount rate TB</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(discountRateTB)}%</p>{renderPoP(discountRateTB, prevStats.discountRateTB, true)}</div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Waste Qty</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUS(wasteQty)}</p>{renderPoP(wasteQty, prevStats.wasteQty, true)}</div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Waste Ratio</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUS(wasteRatio)}%</p>{renderPoP(wasteRatio, prevStats.wasteRatio, true)}</div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Cancel rate</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(cancelRate)}%</p>{renderPoP(cancelRate, prevStats.cancelRate, true)}</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Daily Revenue</h3>
-              <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                      <YAxis width={40} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
-                      <Tooltip formatter={(value: any) => formatUS(value)} />
-                      <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fill="#eff6ff" name="Revenue" />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Payment Methods</h3>
-              <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6">
-                 <div className="h-48 sm:h-64 w-full md:w-1/2 shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={paymentData} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="value">
-                        {paymentData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip formatter={(value: any) => formatUS(value)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="w-full md:w-1/2 flex flex-col justify-center gap-1.5 sm:gap-2">
-                  {paymentData.map((p, i) => (
-                    <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-gray-50 pb-1.5 last:border-0">
-                      <div className="flex items-start flex-1 min-w-0 pr-2">
-                        <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mr-1.5 sm:mr-2 mt-[3px] shrink-0" style={{ backgroundColor: p.color }}></span>
-                        <span className="text-gray-600 break-words leading-tight truncate" title={p.name}>{p.name}</span>
-                      </div>
-                      <span className="font-bold text-gray-900 shrink-0 text-right mt-[1px]">{formatUS(p.value)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Daily Discount Rate (%)</h3>
-              <div className="flex-1 w-full relative min-h-[250px]">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                      <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
-                      <Tooltip formatter={(value: any) => `${formatUS(value)}%`} />
-                      <Area type="monotone" dataKey="discount" stroke="#ea580c" strokeWidth={3} fill="#fff7ed" name="Discount Rate" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Daily Waste Qty</h3>
-              <div className="flex-1 w-full relative min-h-[250px]">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                      <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
-                      <Tooltip formatter={(value: any) => formatUS(value)} />
-                      <Line type="monotone" dataKey="waste" stroke="#ef4444" strokeWidth={3} dot={{r:3}} name="Waste Qty" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Daily Cancel Qty</h3>
-              <div className="flex-1 w-full relative min-h-[250px]">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                      <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
-                      <Tooltip formatter={(value: any) => formatUS(value)} />
-                      <Line type="monotone" dataKey="cancel" stroke="#8b5cf6" strokeWidth={3} dot={{r:3}} name="Cancel Qty" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            {/* Đã cập nhật độ rộng Width trục Y cho Cancel Reasons lên 170 */}
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Cancel Reasons</h3>
-              <div className="flex-1 w-full relative min-h-[250px]">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={cancelReasonData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={170} tick={{fontSize: 10}} axisLine={false} tickLine={false} tickFormatter={(val) => val.length > 26 ? val.substring(0, 26) + '...' : val} />
-                      <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f5f3ff'}} />
-                      <Bar dataKey="qty" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={20} name="Cancel Qty" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* WASTE DEEP DIVE CHARTS */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste Qty by Store</h3>
-              <div className="flex-1 w-full relative min-h-[300px]">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={wasteByStoreData} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={60} tick={{fontSize: 10, fontWeight: 500}} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#fef2f2'}} />
-                      <Bar dataKey="qty" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={20} name="Waste Qty" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste Breakdown by Group (%)</h3>
-              <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6">
-                 <div className="h-48 sm:h-64 w-full md:w-1/2 shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={wasteByGroupData} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="value">
-                        {wasteByGroupData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip formatter={(value: any) => formatUS(value)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="w-full md:w-1/2 flex flex-col justify-center gap-1.5 sm:gap-2">
-                  {wasteByGroupData.map((p, i) => (
-                    <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-gray-50 pb-1.5 last:border-0">
-                      <div className="flex items-start flex-1 min-w-0 pr-2">
-                        <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mr-1.5 sm:mr-2 mt-[3px] shrink-0" style={{ backgroundColor: p.color }}></span>
-                        <span className="text-gray-600 break-words leading-tight truncate" title={p.name}>{p.name}</span>
-                      </div>
-                      <span className="font-bold text-gray-900 shrink-0 text-right mt-[1px]">
-                        {formatUS(p.value)} <span className="text-gray-400 font-normal ml-1">({wasteQty > 0 ? ((p.value / wasteQty) * 100).toFixed(1) : 0}%)</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="font-bold mb-4 text-sm sm:text-base">Top 5 Best-Selling Products (By Group)</h3>
-              <div className="overflow-y-auto overflow-x-auto max-h-[400px]">
-                <table className="w-full text-sm text-left whitespace-nowrap">
-                  <thead className="sticky top-0 bg-white shadow-sm z-10">
-                    <tr className="text-gray-500 border-b border-gray-100">
-                      <th className="pb-2 font-medium px-1">SKU</th><th className="pb-2 font-medium px-1">Product</th><th className="pb-2 font-medium px-1 text-right">Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topSalesByGroup.map((g, gIdx) => (
-                      <React.Fragment key={gIdx}>
-                        <tr className="bg-blue-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-blue-800 uppercase text-xs">Group: {g.group}</td></tr>
-                        {g.items.map((item: any, i: number) => (
-                          <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                            <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td><td className="py-2 px-1 font-medium truncate max-w-[150px] sm:max-w-[250px]" title={item.name}>{item.name}</td><td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
-                          </tr>
-                        ))}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="font-bold mb-4 text-sm sm:text-base">Top 5 Waste Products (By Group)</h3>
-              <div className="overflow-y-auto overflow-x-auto max-h-[400px]">
-                <table className="w-full text-sm text-left whitespace-nowrap">
-                  <thead className="sticky top-0 bg-white shadow-sm z-10">
-                    <tr className="text-gray-500 border-b border-gray-100">
-                      <th className="pb-2 font-medium px-1">SKU</th><th className="pb-2 font-medium px-1">Product</th><th className="pb-2 font-medium px-1 text-right">Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topWasteByGroup.map((g, gIdx) => (
-                      <React.Fragment key={gIdx}>
-                        <tr className="bg-red-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-red-800 uppercase text-xs">Group: {g.group}</td></tr>
-                        {g.items.map((item: any, i: number) => (
-                          <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                            <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td><td className="py-2 px-1 font-medium truncate max-w-[150px] sm:max-w-[250px]" title={item.name}>{item.name}</td><td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
-                          </tr>
-                        ))}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
-            <h3 className="font-bold text-base sm:text-lg mb-4">Operation Reconciliation — Pending Tickets</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Buying-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.buying)}</p></div>
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Process-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.process)}</p></div>
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><p className="text-xs text-gray-500 truncate">Import-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-gray-700">{formatUS(pendingStats.import)}</p></div>
-              <div className="bg-red-50 p-3 rounded-lg border border-red-100"><p className="text-xs text-red-600 truncate font-semibold">Missing Waste-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-red-600">{formatUS(pendingStats.missingWaste)}</p></div>
-              <div className="bg-red-50 p-3 rounded-lg border border-red-100"><p className="text-xs text-red-600 truncate font-semibold">Missing Stock-Ticket</p><p className="text-lg sm:text-2xl font-bold mt-1 text-red-600">{formatUS(pendingStats.missingStock)}</p></div>
-            </div>
-            <div className="overflow-y-auto overflow-x-auto max-h-[350px]">
-              <table className="w-full text-sm text-left whitespace-nowrap">
-                <thead className="sticky top-0 bg-white shadow-sm z-10">
-                  <tr className="text-gray-500 border-b border-gray-200">
-                    <th className="pb-3 px-2 font-medium">Store</th><th className="pb-3 px-2 font-medium">Date</th><th className="pb-3 px-2 font-medium">Ticket Type</th><th className="pb-3 px-2 font-medium text-center">Qty</th><th className="pb-3 px-2 font-medium text-center">Aging Days</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {agingTickets.map((ticket, idx) => {
-                    const isCritical = ticket.aging > 5 && !ticket.isMissing;
-                    let rowClass = 'text-gray-700 hover:bg-gray-50';
-                    if (ticket.isMissing) rowClass = 'bg-red-100 text-red-800 font-bold border-l-4 border-l-red-600';
-                    else if (isCritical) rowClass = 'bg-orange-50 text-orange-700 font-medium';
-
-                    return (
-                      <tr key={idx} className={`border-b border-gray-100 ${rowClass}`}>
-                        <td className="py-2 px-2 text-xs sm:text-sm">{ticket.store}</td>
-                        <td className="py-2 px-2 text-xs sm:text-sm">{ticket.date}</td>
-                        <td className="py-2 px-2 text-xs sm:text-sm">{ticket.type}</td>
-                        <td className="py-2 px-2 text-center text-xs sm:text-sm">{ticket.qty === 'N/A' ? '-' : formatUS(ticket.qty)}</td>
-                        <td className="py-2 px-2 text-center flex items-center justify-center gap-1 text-xs sm:text-sm">
-                          {formatUS(ticket.aging)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {agingTickets.length === 0 && (
-                    <tr><td colSpan={5} className="text-center py-4 text-gray-500">Great! No pending or missing tickets.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
-            <h3 className="font-bold text-base sm:text-lg mb-2">Inventory GAP Table (GAP ≠ 0)</h3>
-            <div className="overflow-y-auto overflow-x-auto max-h-[500px] mt-2 relative">
-              <table className="w-full text-sm text-left whitespace-nowrap">
-                <thead className="sticky top-0 bg-white z-10 shadow-sm">
-                  <tr className="text-gray-500 border-b border-gray-200">
-                    <th className="pb-3 px-2 font-medium">Group</th><th className="pb-3 px-2 font-medium">SKU</th><th className="pb-3 px-2 font-medium">Product-Name</th>
-                    <th className="pb-3 px-2 font-medium text-right">Open</th><th className="pb-3 px-2 font-medium text-right">Process</th><th className="pb-3 px-2 font-medium text-right">Import</th><th className="pb-3 px-2 font-medium text-right">Export</th><th className="pb-3 px-2 font-medium text-right">Sales</th><th className="pb-3 px-2 font-medium text-right">Waste</th><th className="pb-3 px-2 font-medium text-right">Stock</th><th className="pb-3 px-2 font-bold text-right text-gray-800">GAP</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {gapData.map((row, idx) => (
-                    <tr key={idx} className="border-b border-gray-100 text-gray-700 hover:bg-gray-50">
-                      <td className="py-3 px-2 text-xs sm:text-sm">{row.group}</td><td className="py-3 px-2 text-xs sm:text-sm">{row.sku}</td><td className="py-3 px-2 font-medium truncate max-w-[150px] sm:max-w-[200px]" title={row.name}>{row.name}</td>
-                      <td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.open)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.process)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.import)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.export)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.sales)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.waste)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.stock)}</td>
-                      <td className={`py-3 px-2 text-right font-bold text-xs sm:text-sm ${row.gap < 0 ? 'text-red-600' : 'text-orange-500'}`}>{formatUS(row.gap)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
-
-
-      {/* =========================================
-          TAB 2: MARKETING
-      ========================================= */}
-      {activeTab === 'Marketing' && (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
-            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Promotion Revenue</p>
-              <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-blue-600 truncate" title={formatUS(promoRev)}>{formatUS(promoRev)}</p>{renderPoP(promoRev, prevStats.promoRev, false)}</div>
-            </div>
-            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Total Discount</p>
-              <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-orange-500 truncate" title={formatUS(promoDisc)}>{formatUS(promoDisc)}</p>{renderPoP(promoDisc, prevStats.promoDisc, true)}</div>
-            </div>
-            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Promotion Qty</p>
-              <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-gray-800 truncate">{formatUS(promoQty)}</p>{renderPoP(promoQty, prevStats.promoQty, false)}</div>
-            </div>
-            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Promo / Total Revenue (%)</p>
-              <div className="flex items-baseline mt-2">
-                <p className="text-xl sm:text-3xl font-bold text-gray-800 truncate">
-                  {revAfterDisc > 0 ? formatUS((promoRev / revAfterDisc) * 100) : 0}%
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full mb-6">
-            <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Revenue vs Promotion Revenue (Daily)</h3>
-            <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[350px]">
-              <div className="absolute inset-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                    <YAxis width={40} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
-                    <Tooltip formatter={(value: any) => formatUS(value)} />
-                    <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="#eff6ff" name="Total Revenue" />
-                    <Area type="monotone" dataKey="promoRevenue" stroke="#10b981" strokeWidth={2} fill="#d1fae5" name="Promo Revenue" />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Top 10 Promotions by Qty</h3>
-              <div className="flex-1 w-full relative min-h-[300px] sm:min-h-[400px]">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={topPromoByQty} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f3f4f6'}} />
-                      <Bar dataKey="qty" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} name="Qty" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Top 10 Promotions by Revenue</h3>
-              <div className="flex-1 w-full relative min-h-[300px] sm:min-h-[400px]">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={topPromoByRev} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f3f4f6'}} />
-                      <Bar dataKey="gross" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} name="Revenue" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
-            <h3 className="font-bold text-base sm:text-lg mb-2">Promotion Details Table</h3>
-            <div className="overflow-y-auto overflow-x-auto max-h-[500px] mt-2 relative">
-              <table className="w-full text-sm text-left whitespace-nowrap">
-                <thead className="sticky top-0 bg-white z-10 shadow-sm">
-                  <tr className="text-gray-500 border-b border-gray-200">
-                    <th className="pb-3 px-2 font-medium">Promotion Name (Type-Info)</th>
-                    <th className="pb-3 px-2 font-medium text-right">Qty</th>
-                    <th className="pb-3 px-2 font-medium text-right">Sales</th>
-                    <th className="pb-3 px-2 font-medium text-right">Discount</th>
-                    <th className="pb-3 px-2 font-bold text-right text-gray-800">Gross Sales</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {promoList.map((row, idx) => (
-                    <tr key={idx} className="border-b border-gray-100 text-gray-700 hover:bg-gray-50">
-                      <td className="py-3 px-2 font-medium text-xs sm:text-sm truncate max-w-[200px]" title={row.name}>{row.name}</td>
-                      <td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.qty)}</td>
-                      <td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.sales)}</td>
-                      <td className="py-3 px-2 text-right text-xs sm:text-sm text-orange-500">{formatUS(row.discount)}</td>
-                      <td className="py-3 px-2 text-right font-bold text-xs sm:text-sm text-blue-600">{formatUS(row.gross)}</td>
-                    </tr>
-                  ))}
-                  {promoList.length === 0 && (
-                    <tr><td colSpan={5} className="text-center py-6 text-gray-500">No promotion data available.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* =========================================
-          TAB 3: REVIEWS & MISTAKES
-      ========================================= */}
-      {activeTab === 'Reviews' && (
-        <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
-            <div className={`bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center transition-opacity ${reviewFilter === 'Customer Surveys' ? 'opacity-40' : ''}`}>
-              <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Maps Avg Rating</p>
-              <div className="flex items-center justify-center">
-                <span className="text-3xl sm:text-4xl font-black text-gray-800 mr-1">{avgMapsRating.toFixed(2)}</span>
-                <Star className="text-yellow-400 fill-yellow-400 w-6 h-6 sm:w-8 sm:h-8" />
-                <div className="mb-1">{renderPoP(avgMapsRating, prevStats.prevAvgMaps, false)}</div>
-              </div>
-            </div>
-            <div className={`bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center transition-opacity ${reviewFilter === 'Google Maps' ? 'opacity-40' : ''}`}>
-              <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Survey Avg Rating</p>
-              <div className="flex items-center justify-center">
-                <span className="text-3xl sm:text-4xl font-black text-gray-800 mr-1">{avgCusRating.toFixed(2)}</span>
-                <Star className="text-yellow-400 fill-yellow-400 w-6 h-6 sm:w-8 sm:h-8" />
-                <div className="mb-1">{renderPoP(avgCusRating, prevStats.prevAvgCus, false)}</div>
-              </div>
-            </div>
-            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Total Reviews</p>
-              <div className="flex items-center justify-center">
-                <span className="text-3xl sm:text-4xl font-black text-blue-600">{formatUS(totalReviews)}</span>
-                <div className="mb-1">{renderPoP(totalReviews, prevStats.prevTotalReviews, false)}</div>
-              </div>
-            </div>
-            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Operational Mistakes</p>
-              <div className="flex items-center justify-center">
-                <span className="text-3xl sm:text-4xl font-black text-red-500 mr-1">{formatUS(totalMistakes)}</span>
-                <AlertCircle className="text-red-500 w-6 h-6 sm:w-7 sm:h-7" />
-                <div className="mb-1">{renderPoP(totalMistakes, prevStats.prevTotalMistakes, true)}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 items-stretch">
-            {/* MAPS RATING DISTRIBUTION */}
-            <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full transition-opacity ${reviewFilter === 'Customer Surveys' ? 'hidden lg:flex opacity-40' : ''}`}>
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Maps Rating Dist.</h3>
-              <div className="flex-1 flex flex-col items-center justify-center gap-2">
-                 <div className="h-40 sm:h-48 w-full shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={mapsDistData} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="value">
-                        {mapsDistData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip formatter={(value: any) => formatUS(value)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="w-full flex flex-col gap-1.5 px-2">
-                  {mapsDistData.map((p, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs w-full">
-                      <div className="flex items-center"><span className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: p.color }}></span><span className="text-gray-600">{p.name}</span></div>
-                      <span className="font-bold text-gray-900">{formatUS(p.value)}</span>
-                    </div>
-                  ))}
-                  {mapsDistData.length === 0 && <p className="text-xs text-gray-500 text-center w-full">No data</p>}
-                </div>
-              </div>
-            </div>
-
-            {/* SURVEY RATING DISTRIBUTION */}
-            <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full transition-opacity ${reviewFilter === 'Google Maps' ? 'hidden lg:flex opacity-40' : ''}`}>
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Survey Rating Dist.</h3>
-              <div className="flex-1 flex flex-col items-center justify-center gap-2">
-                 <div className="h-40 sm:h-48 w-full shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={cusDistData} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="value">
-                        {cusDistData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip formatter={(value: any) => formatUS(value)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="w-full flex flex-col gap-1.5 px-2">
-                  {cusDistData.map((p, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs w-full">
-                      <div className="flex items-center"><span className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: p.color }}></span><span className="text-gray-600">{p.name}</span></div>
-                      <span className="font-bold text-gray-900">{formatUS(p.value)}</span>
-                    </div>
-                  ))}
-                  {cusDistData.length === 0 && <p className="text-xs text-gray-500 text-center w-full">No data</p>}
-                </div>
-              </div>
-            </div>
-
-            {/* MISTAKES BY CATEGORY BAR CHART */}
-            <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full ${(reviewFilter === 'Google Maps' || reviewFilter === 'Customer Surveys') ? 'lg:col-span-2' : ''}`}>
-              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Mistakes by Category</h3>
-              <div className="flex-1 w-full relative min-h-[250px]">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mistakeCatDist} layout="vertical" margin={{ top: 5, right: 20, left: 5, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={110} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#fef2f2'}} />
-                      <Bar dataKey="qty" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={20} name="Count" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* MISTAKES LOG TABLE */}
-          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
-            <h3 className="font-bold text-base sm:text-lg mb-2 text-red-600">Operational Mistakes Log</h3>
-            <div className="overflow-y-auto overflow-x-auto max-h-[350px] mt-2 relative border border-gray-100 rounded-lg">
-              <table className="w-full text-sm text-left whitespace-nowrap">
-                <thead className="sticky top-0 bg-red-50 z-10">
-                  <tr className="text-red-800 border-b border-red-100">
-                    <th className="py-3 px-3 font-semibold">Date</th>
-                    <th className="py-3 px-3 font-semibold">Store</th>
-                    <th className="py-3 px-3 font-semibold">Category</th>
-                    <th className="py-3 px-3 font-semibold">Source</th>
-                    <th className="py-3 px-3 font-semibold w-1/2">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mistakeList.map((row, idx) => (
-                    <tr key={idx} className="border-b border-gray-50 text-gray-700 hover:bg-red-50/50">
-                      <td className="py-3 px-3 text-xs sm:text-sm">{row.date}</td>
-                      <td className="py-3 px-3 text-xs sm:text-sm font-medium">{row.store}</td>
-                      <td className="py-3 px-3 text-xs sm:text-sm">{row.category}</td>
-                      <td className="py-3 px-3 text-xs sm:text-sm text-gray-500">{row.source}</td>
-                      <td className="py-3 px-3 text-xs sm:text-sm whitespace-normal min-w-[200px]">{row.details}</td>
-                    </tr>
-                  ))}
-                  {mistakeList.length === 0 && (
-                    <tr><td colSpan={5} className="text-center py-6 text-gray-500">No operational mistakes recorded.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* CUSTOMER REVIEWS TABLE */}
-          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
-            <h3 className="font-bold text-base sm:text-lg mb-2 text-blue-600">Recent Customer Reviews</h3>
-            <div className="overflow-y-auto overflow-x-auto max-h-[400px] mt-2 relative border border-gray-100 rounded-lg">
-              <table className="w-full text-sm text-left whitespace-nowrap">
-                <thead className="sticky top-0 bg-blue-50 z-10">
-                  <tr className="text-blue-800 border-b border-blue-100">
-                    <th className="py-3 px-3 font-semibold">Date</th>
-                    <th className="py-3 px-3 font-semibold">Store</th>
-                    <th className="py-3 px-3 font-semibold text-center">Rating</th>
-                    <th className="py-3 px-3 font-semibold">Platform</th>
-                    <th className="py-3 px-3 font-semibold w-1/2">Review Text</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reviewList.map((row, idx) => (
-                    <tr key={idx} className="border-b border-gray-50 text-gray-700 hover:bg-blue-50/50">
-                      <td className="py-3 px-3 text-xs sm:text-sm">{row.date}</td>
-                      <td className="py-3 px-3 text-xs sm:text-sm font-medium">{row.store}</td>
-                      <td className="py-3 px-3 text-center">
-                        <div className="flex items-center justify-center bg-gray-100 rounded-full px-2 py-1 w-fit mx-auto">
-                          <span className="font-bold text-xs mr-1">{row.rating}</span>
-                          <Star className={`w-3 h-3 ${row.rating >= 4 ? 'text-green-500 fill-green-500' : row.rating === 3 ? 'text-yellow-500 fill-yellow-500' : 'text-red-500 fill-red-500'}`} />
-                        </div>
-                      </td>
-                      <td className="py-3 px-3 text-xs sm:text-sm text-gray-500">{row.source}</td>
-                      <td className="py-3 px-3 text-xs sm:text-sm whitespace-normal min-w-[300px] italic">"{row.text}"</td>
-                    </tr>
-                  ))}
-                  {reviewList.length === 0 && (
-                    <tr><td colSpan={5} className="text-center py-6 text-gray-500">No written reviews available.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
-
+      {/* RENDER CÁC TAB TƯƠNG ỨNG */}
+      {activeTab === 'Overview' && <OverviewTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
+      {activeTab === 'Marketing' && <MarketingTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
+      {activeTab === 'Reviews' && <ReviewsTab data={calculatedData} utils={{ formatUS, renderPoP }} reviewFilter={reviewFilter} />}
+      
     </div>
   );
 }
