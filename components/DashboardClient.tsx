@@ -18,7 +18,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
-  // NEW SLICER CHO REVIEWS & MISTAKES
+  // REVIEWS SOURCE SLICER
   const [reviewFilter, setReviewFilter] = useState('All');
 
   // FETCH DATA
@@ -84,17 +84,22 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
   // CORE DATA PROCESSING
   const { 
-    netRevenue, totalBills, aov, discountRateTB, wasteQty, cancelRate, 
+    revenue, revAfterDisc, commissions, vatValue, royalty, trueNetRevenue, 
+    totalBills, aov, discountRateTB, wasteQty, cancelRate, 
     trendData, paymentData, topSalesByGroup, topWasteByGroup, 
     agingTickets, pendingStats, gapData, filteredCount, prevStats,
     promoRev, promoDisc, promoQty, promoList, topPromoByQty, topPromoByRev,
-    // REVIEWS & MISTAKES
     avgMapsRating, avgCusRating, totalReviews, reviewList, 
     mapsDistData, cusDistData, totalMistakes, mistakeList, mistakeCatDist
   } = useMemo(() => {
     
-    let rev = 0, totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0;
-    let prevRev = 0, prevTotalDiscount = 0, prevCountBills = 0, prevCancelBills = 0, prevWaste = 0;
+    // CURRENT PERIOD VARS (Financial)
+    let curRev = 0, curRevAfterDisc = 0, curCommissions = 0, curVat = 0;
+    let totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0;
+    
+    // PREVIOUS PERIOD VARS (Financial)
+    let prevRev = 0, prevRevAfterDisc = 0, prevCommissions = 0, prevVat = 0;
+    let prevTotalDiscount = 0, prevCountBills = 0, prevCancelBills = 0, prevWaste = 0;
 
     let mktPromoRev = 0, mktPromoDisc = 0, mktPromoQty = 0;
     let prevMktPromoRev = 0, prevMktPromoDisc = 0, prevMktPromoQty = 0;
@@ -159,6 +164,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const gross = parseNum(row['Gross-Sales']);
       const disc = parseNum(row['Discount']);
       const salesVal = parseNum(row['Sales']);
+      const rowVat = parseNum(row['VAT']);
       
       const sourceMistake = clean(row['Source-Mistake']);
       const mistakeDetails = clean(row['Mistake-Details']);
@@ -167,20 +173,25 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const isPrevPeriod = rowTime && rowTime >= prevStartTime && rowTime <= prevEndTime;
       const isDateEmpty = !rowTime; 
 
-      // Định danh loại Review
       const isMapsReview = sourceMistake.includes('Maps') || tType === 'Maps-Reviews';
-      
-      // Xử lý cờ Review Filter
       const passReviewFilter = reviewFilter === 'All' 
         || (reviewFilter === 'Google Maps' && isMapsReview)
         || (reviewFilter === 'Customer Surveys' && !isMapsReview);
 
       // --- 1. PREVIOUS PERIOD LOGIC (PoP) ---
       if (isPrevPeriod) {
-        if (tType === 'Sales') { prevRev += gross; prevTotalDiscount += disc; }
+        if (tType === 'Sales') { 
+          prevRev += salesVal; 
+          prevRevAfterDisc += gross; 
+          prevTotalDiscount += disc; 
+          prevVat += rowVat;
+        }
+        if (tType === 'Commissions') prevCommissions += salesVal;
+        
         if (tType === 'Count-Bills') prevCountBills += qty;
         if (tType === 'Cancel') prevCancelBills += qty;
         if (tType === 'Waste') prevWaste += qty;
+        
         if (tType === 'Promotion') {
           prevMktPromoRev += gross;
           prevMktPromoDisc += disc;
@@ -217,22 +228,19 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       // --- 3. CURRENT PERIOD LOGIC ---
       if (isCurrentPeriod || isDateEmpty) {
         
-        // REVIEWS & MISTAKES LOGIC
         if (tType === 'Cus-Reviews' || tType === 'Reviews') {
           if (passReviewFilter) {
             if (qty > 0 && qty <= 5) {
                const rounded = Math.round(qty);
                if (isMapsReview) {
-                 mapsSumRating += qty;
-                 mapsCountRating++;
+                 mapsSumRating += qty; mapsCountRating++;
                  if (rounded === 5) mapsRatingCountMap['5 Stars']++;
                  else if (rounded === 4) mapsRatingCountMap['4 Stars']++;
                  else if (rounded === 3) mapsRatingCountMap['3 Stars']++;
                  else if (rounded === 2) mapsRatingCountMap['2 Stars']++;
                  else if (rounded === 1) mapsRatingCountMap['1 Star']++;
                } else {
-                 cusSumRating += qty;
-                 cusCountRating++;
+                 cusSumRating += qty; cusCountRating++;
                  if (rounded === 5) cusRatingCountMap['5 Stars']++;
                  else if (rounded === 4) cusRatingCountMap['4 Stars']++;
                  else if (rounded === 3) cusRatingCountMap['3 Stars']++;
@@ -253,7 +261,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           mList.push({ date: dateStr || 'N/A', store: store, category: catName, source: sourceMistake, details: mistakeDetails, qty: qty });
         }
 
-        if (!isCurrentPeriod) return; // Các biểu đồ khác không lấy Date rỗng
+        if (!isCurrentPeriod) return; 
 
         fCount++;
         activeDates.add(dateStr);
@@ -263,13 +271,22 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         if (!trendMap[day]) trendMap[day] = { day, revenue: 0, target: 0, discountAmt: 0, waste: 0, countBill: 0, cancel: 0, promoRevenue: 0 };
 
         if (tType === 'Sales') {
-          rev += gross; totalDiscount += disc; trendMap[day].revenue += gross; trendMap[day].discountAmt += disc;
+          curRev += salesVal;
+          curRevAfterDisc += gross; 
+          curVat += rowVat;
+          totalDiscount += disc; 
+          trendMap[day].revenue += gross; // Chart dùng Revenue after discount
+          trendMap[day].discountAmt += disc;
+          
           if (sku) {
             if (!salesMapByGroup[groupName]) salesMapByGroup[groupName] = {};
             if (!salesMapByGroup[groupName][sku]) salesMapByGroup[groupName][sku] = { sku, name, qty: 0 };
             salesMapByGroup[groupName][sku].qty += qty;
           }
         }
+        
+        if (tType === 'Commissions') curCommissions += salesVal;
+
         if (tType === 'Count-Bills') { countBills += qty; trendMap[day].countBill += qty; }
         if (tType === 'Cancel') { cancelBills += qty; trendMap[day].cancel += qty; }
         if (tType === 'Target') trendMap[day].target += salesVal;
@@ -316,6 +333,14 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       }
     });
 
+    // TÍNH TOÁN FINANCIALS CUỐI CÙNG
+    const curRoyalty = (curRevAfterDisc - curCommissions - curVat) * 0.05;
+    const curNetRevenue = curRevAfterDisc - curCommissions - curVat - curRoyalty;
+
+    const prevRoyalty = (prevRevAfterDisc - prevCommissions - prevVat) * 0.05;
+    const prevNetRevenue = prevRevAfterDisc - prevCommissions - prevVat - prevRoyalty;
+
+    // ĐÓNG GÓI CÁC BẢNG DỮ LIỆU
     const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
     const pColors = ['#2563eb', '#f97316', '#10b981', '#fbbf24', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
@@ -350,7 +375,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const mktTopByQty = [...mktPromoList].sort((a, b) => b.qty - a.qty).slice(0, 10);
     const mktTopByRev = [...mktPromoList].sort((a, b) => b.gross - a.gross).slice(0, 10);
 
-    // REVIEWS DATA CHỐT LẠI
     const aMapsRating = mapsCountRating > 0 ? mapsSumRating / mapsCountRating : 0;
     const aCusRating = cusCountRating > 0 ? cusSumRating / cusCountRating : 0;
     const tReviews = mapsCountRating + cusCountRating;
@@ -361,10 +385,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const mCatDistData = Object.keys(mistakeCatMap).map(k => ({ name: k, qty: mistakeCatMap[k] })).sort((a, b) => b.qty - a.qty);
 
     const prevStatsResult = {
-      netRevenue: prevRev,
+      revenue: prevRev,
+      revAfterDisc: prevRevAfterDisc,
+      commissions: prevCommissions,
+      vatValue: prevVat,
+      royalty: prevRoyalty,
+      trueNetRevenue: prevNetRevenue,
       totalBills: prevCountBills,
-      aov: prevCountBills > 0 ? prevRev / prevCountBills : 0,
-      discountRateTB: prevRev > 0 ? (prevTotalDiscount / prevRev) * 100 : 0,
+      aov: prevCountBills > 0 ? prevRevAfterDisc / prevCountBills : 0,
+      discountRateTB: prevRevAfterDisc > 0 ? (prevTotalDiscount / prevRevAfterDisc) * 100 : 0,
       wasteQty: prevWaste,
       cancelRate: prevCountBills > 0 ? (prevCancelBills / prevCountBills) * 100 : 0,
       promoRev: prevMktPromoRev,
@@ -377,7 +406,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     };
 
     return {
-      netRevenue: rev, totalBills: countBills, aov: countBills > 0 ? rev / countBills : 0, discountRateTB: rev > 0 ? (totalDiscount / rev) * 100 : 0,
+      revenue: curRev, revAfterDisc: curRevAfterDisc, commissions: curCommissions, vatValue: curVat, royalty: curRoyalty, trueNetRevenue: curNetRevenue,
+      totalBills: countBills, aov: countBills > 0 ? curRevAfterDisc / countBills : 0, discountRateTB: curRevAfterDisc > 0 ? (totalDiscount / curRevAfterDisc) * 100 : 0,
       wasteQty: waste, cancelRate: countBills > 0 ? (cancelBills / countBills) * 100 : 0,
       trendData: tData, paymentData: pData, topSalesByGroup: tSalesGroup, topWasteByGroup: tWasteGroup, agingTickets: finalAgingTickets, pendingStats: pStats, gapData: gData, filteredCount: fCount,
       promoRev: mktPromoRev, promoDisc: mktPromoDisc, promoQty: mktPromoQty, promoList: mktPromoList, topPromoByQty: mktTopByQty, topPromoByRev: mktTopByRev,
@@ -387,7 +417,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     };
   }, [baseFilteredData, startDate, endDate, rawData, reviewFilter]);
 
-  // HÀM RENDER CHỈ SỐ SO SÁNH (PoP)
   const renderPoP = (current: number, prev: number, inverseColor: boolean = false) => {
     if (!prev || prev === 0) return <span className="text-[10px] sm:text-xs text-gray-400 ml-2 font-normal">--</span>; 
     if (current === prev) return null; 
@@ -460,7 +489,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             {groups.map((g: any) => <option key={g} value={g}>{g}</option>)}
           </select>
           
-          {/* REVIEWS SOURCE SLICER (Chỉ hiển thị ở Tab Reviews) */}
           {activeTab === 'Reviews' && (
             <select value={reviewFilter} onChange={e => setReviewFilter(e.target.value)} className="border border-blue-300 rounded-md p-2 text-sm bg-blue-50 text-blue-800 cursor-pointer hover:border-blue-500 w-full md:w-auto font-medium">
               <option value="All">-- All Review Sources --</option>
@@ -481,10 +509,34 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       {activeTab === 'Overview' && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
+            {/* ROW 1: FINANCIALS */}
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Revenue</p>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate" title={formatUS(revenue)}>{formatUS(revenue)}</p>{renderPoP(revenue, prevStats.revenue, false)}</div>
+            </div>
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Revenue after discount</p>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-blue-600 truncate" title={formatUS(revAfterDisc)}>{formatUS(revAfterDisc)}</p>{renderPoP(revAfterDisc, prevStats.revAfterDisc, false)}</div>
+            </div>
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Commissions</p>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate" title={formatUS(commissions)}>{formatUS(commissions)}</p>{renderPoP(commissions, prevStats.commissions, true)}</div>
+            </div>
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">VAT</p>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate" title={formatUS(vatValue)}>{formatUS(vatValue)}</p>{renderPoP(vatValue, prevStats.vatValue, true)}</div>
+            </div>
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Royalty (5%)</p>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate" title={formatUS(royalty)}>{formatUS(royalty)}</p>{renderPoP(royalty, prevStats.royalty, true)}</div>
+            </div>
             <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
               <p className="text-xs sm:text-sm text-gray-500 font-medium">Net revenue</p>
-              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate" title={formatUS(netRevenue)}>{formatUS(netRevenue)}</p>{renderPoP(netRevenue, prevStats.netRevenue, false)}</div>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-green-600 truncate" title={formatUS(trueNetRevenue)}>{formatUS(trueNetRevenue)}</p>{renderPoP(trueNetRevenue, prevStats.trueNetRevenue, false)}</div>
+              <p className="text-[10px] text-gray-400 mt-1 italic">*Excluding OPEX & COGS</p>
             </div>
+
+            {/* ROW 2: OPERATIONS */}
             <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
               <p className="text-xs sm:text-sm text-gray-500 font-medium">Count-Bills</p>
               <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(totalBills)}</p>{renderPoP(totalBills, prevStats.totalBills, false)}</div>
@@ -706,6 +758,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         </>
       )}
 
+
       {/* =========================================
           TAB 2: MARKETING
       ========================================= */}
@@ -728,7 +781,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
               <p className="text-xs sm:text-sm text-gray-500 font-medium">Promo / Total Revenue (%)</p>
               <div className="flex items-baseline mt-2">
                 <p className="text-xl sm:text-3xl font-bold text-gray-800 truncate">
-                  {netRevenue > 0 ? formatUS((promoRev / netRevenue) * 100) : 0}%
+                  {revAfterDisc > 0 ? formatUS((promoRev / revAfterDisc) * 100) : 0}%
                 </p>
               </div>
             </div>
@@ -827,7 +880,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       {activeTab === 'Reviews' && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
-            <div className={`bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center ${reviewFilter === 'Customer Surveys' ? 'opacity-40' : ''}`}>
+            <div className={`bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center transition-opacity ${reviewFilter === 'Customer Surveys' ? 'opacity-40' : ''}`}>
               <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Maps Avg Rating</p>
               <div className="flex items-center justify-center">
                 <span className="text-3xl sm:text-4xl font-black text-gray-800 mr-1">{avgMapsRating.toFixed(2)}</span>
@@ -835,7 +888,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                 <div className="mb-1">{renderPoP(avgMapsRating, prevStats.prevAvgMaps, false)}</div>
               </div>
             </div>
-            <div className={`bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center ${reviewFilter === 'Google Maps' ? 'opacity-40' : ''}`}>
+            <div className={`bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center transition-opacity ${reviewFilter === 'Google Maps' ? 'opacity-40' : ''}`}>
               <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Survey Avg Rating</p>
               <div className="flex items-center justify-center">
                 <span className="text-3xl sm:text-4xl font-black text-gray-800 mr-1">{avgCusRating.toFixed(2)}</span>
@@ -862,7 +915,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 items-stretch">
             {/* MAPS RATING DISTRIBUTION */}
-            <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full ${reviewFilter === 'Customer Surveys' ? 'hidden lg:flex opacity-40' : ''}`}>
+            <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full transition-opacity ${reviewFilter === 'Customer Surveys' ? 'hidden lg:flex opacity-40' : ''}`}>
               <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Maps Rating Dist.</h3>
               <div className="flex-1 flex flex-col items-center justify-center gap-2">
                  <div className="h-40 sm:h-48 w-full shrink-0">
@@ -888,7 +941,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             </div>
 
             {/* SURVEY RATING DISTRIBUTION */}
-            <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full ${reviewFilter === 'Google Maps' ? 'hidden lg:flex opacity-40' : ''}`}>
+            <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full transition-opacity ${reviewFilter === 'Google Maps' ? 'hidden lg:flex opacity-40' : ''}`}>
               <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Survey Rating Dist.</h3>
               <div className="flex-1 flex flex-col items-center justify-center gap-2">
                  <div className="h-40 sm:h-48 w-full shrink-0">
