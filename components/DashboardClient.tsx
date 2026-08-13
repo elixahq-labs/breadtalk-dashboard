@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 // IMPORT TABS GIAO DIỆN
 import OverviewTab from './tabs/OverviewTab';
+import InventoryTab from './tabs/InventoryTab'; // <-- Đã đổi tên ở đây
 import MarketingTab from './tabs/MarketingTab';
 import ReviewsTab from './tabs/ReviewsTab';
 import WorkforceAnalyticsTab from './tabs/WorkforceAnalyticsTab';
@@ -15,7 +16,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   const [rawData, setRawData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ĐIỀU HƯỚNG TAB: 'Overview', 'Marketing', 'Reviews', 'HR', 'PnL'
+  // ĐIỀU HƯỚNG TAB
   const [activeTab, setActiveTab] = useState('Overview');
 
   const [storeFilter, setStoreFilter] = useState('All');
@@ -260,6 +261,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
         if (tType === 'Waste') {
           waste += qty; trendMap[day].waste += qty;
+          
           wasteByStoreMap[storeCode] = (wasteByStoreMap[storeCode] || 0) + qty;
           wasteGroupMap[groupName] = (wasteGroupMap[groupName] || 0) + qty;
 
@@ -397,15 +399,17 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   return (
     <div className="p-3 sm:p-6 bg-[#f8f9fa] min-h-screen font-sans text-gray-800">
       
-      {/* GLOBAL SLICERS */}
+      {/* HEADER & GLOBAL SLICERS */}
       <div className="mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-50">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
           <h1 className="text-lg md:text-xl font-bold text-gray-900">Operations Dashboard</h1>
           <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto w-full sm:w-auto">
+            {/* THỨ TỰ TABS: Overview | Inventory | Marketing | Reviews & Mistakes | Workforce Analytics | P&L */}
             <button onClick={() => setActiveTab('Overview')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Overview' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Overview</button>
+            <button onClick={() => setActiveTab('Inventory')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Inventory' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Inventory</button>
             <button onClick={() => setActiveTab('Marketing')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Marketing' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Marketing</button>
             <button onClick={() => setActiveTab('Reviews')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Reviews' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Reviews & Mistakes</button>
-            <button onClick={() => setActiveTab('HR')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'HR' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Human Resources</button>
+            <button onClick={() => setActiveTab('HR')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'HR' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Workforce Analytics</button>
             <button onClick={() => setActiveTab('PnL')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'PnL' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>P&L</button>
           </div>
         </div>
@@ -443,6 +447,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
       {/* RENDER CÁC TAB TƯƠNG ỨNG */}
       {activeTab === 'Overview' && <OverviewTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
+      {activeTab === 'Inventory' && <InventoryTab data={calculatedData} utils={{ formatUS }} />}
       {activeTab === 'Marketing' && <MarketingTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
       {activeTab === 'Reviews' && <ReviewsTab data={calculatedData} utils={{ formatUS, renderPoP }} reviewFilter={reviewFilter} />}
       {activeTab === 'HR' && <WorkforceAnalyticsTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
