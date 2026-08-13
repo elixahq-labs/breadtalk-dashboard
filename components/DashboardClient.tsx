@@ -94,11 +94,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     mapsDistData, cusDistData, totalMistakes, mistakeList, mistakeCatDist
   } = useMemo(() => {
     
-    // CURRENT PERIOD VARS
     let curRev = 0, curRevAfterDisc = 0, curCommissions = 0, curVat = 0;
     let totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0, salesQty = 0;
     
-    // PREVIOUS PERIOD VARS
     let prevRev = 0, prevRevAfterDisc = 0, prevCommissions = 0, prevVat = 0;
     let prevTotalDiscount = 0, prevCountBills = 0, prevCancelBills = 0, prevWaste = 0, prevSalesQty = 0;
 
@@ -120,12 +118,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
     const promoMap: Record<string, any> = {}; 
 
-    // WASTE & CANCEL ANALYSIS VARS
     const wasteByStoreMap: Record<string, number> = {};
     const wasteGroupMap: Record<string, number> = {};
     const cancelReasonMap: Record<string, number> = {};
 
-    // REVIEWS & MISTAKES VARS
     let mapsSumRating = 0, mapsCountRating = 0;
     let cusSumRating = 0, cusCountRating = 0;
     let countMistakes = 0;
@@ -184,11 +180,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         || (reviewFilter === 'Google Maps' && isMapsReview)
         || (reviewFilter === 'Customer Surveys' && !isMapsReview);
 
-      // --- 1. PREVIOUS PERIOD LOGIC (PoP) ---
       if (isPrevPeriod) {
-        if (tType === 'Sales') { 
-          prevRev += salesVal; prevRevAfterDisc += gross; prevTotalDiscount += disc; prevVat += rowVat; prevSalesQty += qty; 
-        }
+        if (tType === 'Sales') { prevRev += salesVal; prevRevAfterDisc += gross; prevTotalDiscount += disc; prevVat += rowVat; prevSalesQty += qty; }
         if (tType === 'Commissions') prevCommissions += salesVal;
         if (tType === 'Count-Bills') prevCountBills += qty;
         if (tType === 'Cancel') prevCancelBills += qty;
@@ -202,7 +195,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         if (tType === 'Mistake') prevCountMistakes += qty;
       }
 
-      // --- 2. GAP LOGIC ---
       if (sku) {
         const key = `${groupName}_${sku}`;
         if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open:0, process:0, import:0, export:0, sales:0, waste:0, stock:0, gap:0 };
@@ -219,7 +211,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         }
       }
 
-      // --- 3. CURRENT PERIOD LOGIC ---
       if (isCurrentPeriod || isDateEmpty) {
         
         if (tType === 'Cus-Reviews' || tType === 'Reviews') {
@@ -269,7 +260,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         if (tType === 'Target') trendMap[day].target += salesVal;
         if (tType === 'Payment') paymentMap[tInfo || 'Others'] = (paymentMap[tInfo || 'Others'] || 0) + salesVal;
 
-        // CANCEL TICKETS
         if (tType === 'Cancel') { 
           cancelBills += qty; 
           trendMap[day].cancel += qty; 
@@ -277,7 +267,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           cancelReasonMap[cReason] = (cancelReasonMap[cReason] || 0) + qty;
         }
 
-        // WASTE AGGREGATION
         if (tType === 'Waste') {
           waste += qty; trendMap[day].waste += qty;
           wasteByStoreMap[store] = (wasteByStoreMap[store] || 0) + qty;
@@ -331,7 +320,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ group, items: Object.values(wasteMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Others').sort((a, b) => a.group.localeCompare(b.group)); 
 
-    // CANCEL REASONS & WASTE ANALYSIS CHARTS
     const cReasonData = Object.keys(cancelReasonMap).map(k => ({ name: k, qty: cancelReasonMap[k] })).sort((a, b) => b.qty - a.qty);
     const wStoreData = Object.keys(wasteByStoreMap).map(k => ({ name: k, qty: wasteByStoreMap[k] })).sort((a, b) => b.qty - a.qty);
     const wColors = ['#ef4444', '#f97316', '#f59e0b', '#fbbf24', '#eab308', '#84cc16', '#22c55e', '#0ea5e9', '#3b82f6', '#8b5cf6', '#d946ef'];
@@ -648,7 +636,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                     <BarChart data={cancelReasonData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                      <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10}} axisLine={false} tickLine={false} tickFormatter={(val) => val.length > 20 ? val.substring(0, 20) + '...' : val} />
                       <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f5f3ff'}} />
                       <Bar dataKey="qty" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={20} name="Cancel Qty" />
                     </BarChart>
@@ -658,6 +646,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             </div>
           </div>
 
+          {/* WASTE DEEP DIVE CHARTS (Nới rộng Width & Thêm tickFormatter cho Tên CH dài) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
               <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste Qty by Store</h3>
@@ -667,7 +656,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                     <BarChart data={wasteByStoreData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                      {/* Đã tăng width lên 180 và tự động cắt chữ dài */}
+                      <YAxis dataKey="name" type="category" width={180} tick={{fontSize: 10}} axisLine={false} tickLine={false} tickFormatter={(val) => val.length > 22 ? val.substring(0, 22) + '...' : val} />
                       <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#fef2f2'}} />
                       <Bar dataKey="qty" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={20} name="Waste Qty" />
                     </BarChart>
