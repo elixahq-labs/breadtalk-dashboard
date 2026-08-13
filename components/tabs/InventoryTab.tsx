@@ -6,6 +6,7 @@ export default function InventoryTab({ data, utils }: { data: any, utils: any })
 
   return (
     <>
+      {/* BẢNG PENDING TICKETS */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-4">Operation Reconciliation — Pending Tickets</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
@@ -49,9 +50,11 @@ export default function InventoryTab({ data, utils }: { data: any, utils: any })
         </div>
       </div>
 
+      {/* BẢNG INVENTORY GAP (Đã nâng max-h lên 1000px) */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-2">Inventory GAP Table (GAP ≠ 0)</h3>
-        <div className="overflow-y-auto overflow-x-auto max-h-[500px] mt-2 relative">
+        {/* CHỈNH SỬA TẠI ĐÂY: max-h-[500px] -> max-h-[1000px] */}
+        <div className="overflow-y-auto overflow-x-auto max-h-[1000px] mt-2 relative">
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="sticky top-0 bg-white z-10 shadow-sm">
               <tr className="text-gray-500 border-b border-gray-200">

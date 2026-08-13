@@ -85,7 +85,8 @@ export default function MarketingTab({ data, utils }: { data: any, utils: any })
 
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-2">Promotion Details Table</h3>
-        <div className="overflow-y-auto overflow-x-auto max-h-[500px] mt-2 relative">
+        {/* ĐÃ CHỈNH SỬA TẠI ĐÂY: Thay max-h-[500px] thành max-h-none để giãn toàn bộ bảng */}
+        <div className="overflow-x-auto max-h-none mt-2 relative">
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="sticky top-0 bg-white z-10 shadow-sm">
               <tr className="text-gray-500 border-b border-gray-200">

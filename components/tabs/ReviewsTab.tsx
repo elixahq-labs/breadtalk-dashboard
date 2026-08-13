@@ -42,6 +42,7 @@ export default function ReviewsTab({ data, utils, reviewFilter }: { data: any, u
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 items-stretch">
+        {/* MAPS RATING DISTRIBUTION */}
         <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full transition-opacity ${reviewFilter === 'Customer Surveys' ? 'hidden lg:flex opacity-40' : ''}`}>
           <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Maps Rating Dist.</h3>
           <div className="flex-1 flex flex-col items-center justify-center gap-2">
@@ -67,6 +68,7 @@ export default function ReviewsTab({ data, utils, reviewFilter }: { data: any, u
           </div>
         </div>
 
+        {/* SURVEY RATING DISTRIBUTION */}
         <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full transition-opacity ${reviewFilter === 'Google Maps' ? 'hidden lg:flex opacity-40' : ''}`}>
           <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Survey Rating Dist.</h3>
           <div className="flex-1 flex flex-col items-center justify-center gap-2">
@@ -92,6 +94,7 @@ export default function ReviewsTab({ data, utils, reviewFilter }: { data: any, u
           </div>
         </div>
 
+        {/* MISTAKES BY CATEGORY BAR CHART */}
         <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full ${(reviewFilter === 'Google Maps' || reviewFilter === 'Customer Surveys') ? 'lg:col-span-2' : ''}`}>
           <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Mistakes by Category</h3>
           <div className="flex-1 w-full relative min-h-[250px]">
@@ -110,6 +113,7 @@ export default function ReviewsTab({ data, utils, reviewFilter }: { data: any, u
         </div>
       </div>
 
+      {/* MISTAKES LOG TABLE */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-2 text-red-600">Operational Mistakes Log</h3>
         <div className="overflow-y-auto overflow-x-auto max-h-[350px] mt-2 relative border border-gray-100 rounded-lg">
@@ -141,9 +145,11 @@ export default function ReviewsTab({ data, utils, reviewFilter }: { data: any, u
         </div>
       </div>
 
+      {/* CUSTOMER REVIEWS TABLE */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-2 text-blue-600">Recent Customer Reviews</h3>
-        <div className="overflow-y-auto overflow-x-auto max-h-[400px] mt-2 relative border border-gray-100 rounded-lg">
+        {/* ĐÃ CHỈNH SỬA TẠI ĐÂY: Thay max-h-[400px] thành max-h-[800px] để kéo dài bảng ra gấp đôi */}
+        <div className="overflow-y-auto overflow-x-auto max-h-[800px] mt-2 relative border border-gray-100 rounded-lg">
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="sticky top-0 bg-blue-50 z-10">
               <tr className="text-blue-800 border-b border-blue-100">
