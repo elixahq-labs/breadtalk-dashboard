@@ -94,9 +94,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     mapsDistData, cusDistData, totalMistakes, mistakeList, mistakeCatDist
   } = useMemo(() => {
     
+    // CURRENT PERIOD VARS
     let curRev = 0, curRevAfterDisc = 0, curCommissions = 0, curVat = 0;
     let totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0, salesQty = 0;
     
+    // PREVIOUS PERIOD VARS
     let prevRev = 0, prevRevAfterDisc = 0, prevCommissions = 0, prevVat = 0;
     let prevTotalDiscount = 0, prevCountBills = 0, prevCancelBills = 0, prevWaste = 0, prevSalesQty = 0;
 
@@ -154,6 +156,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
     baseFilteredData.forEach(row => {
       const store = clean(row['Store-Name']);
+      const storeCode = clean(row['Store-Code']) || store; 
+      
       const groupName = clean(row['Group']) || 'Others';
       const sku = clean(row['SKU']);
       const name = clean(row['Product-Name']);
@@ -269,7 +273,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
         if (tType === 'Waste') {
           waste += qty; trendMap[day].waste += qty;
-          wasteByStoreMap[store] = (wasteByStoreMap[store] || 0) + qty;
+          
+          wasteByStoreMap[storeCode] = (wasteByStoreMap[storeCode] || 0) + qty;
           wasteGroupMap[groupName] = (wasteGroupMap[groupName] || 0) + qty;
 
           if (sku) {
@@ -628,6 +633,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
               </div>
             </div>
 
+            {/* Đã cập nhật độ rộng Width trục Y cho Cancel Reasons lên 170 */}
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
               <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Cancel Reasons</h3>
               <div className="flex-1 w-full relative min-h-[250px]">
@@ -636,7 +642,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                     <BarChart data={cancelReasonData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10}} axisLine={false} tickLine={false} tickFormatter={(val) => val.length > 20 ? val.substring(0, 20) + '...' : val} />
+                      <YAxis dataKey="name" type="category" width={170} tick={{fontSize: 10}} axisLine={false} tickLine={false} tickFormatter={(val) => val.length > 26 ? val.substring(0, 26) + '...' : val} />
                       <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f5f3ff'}} />
                       <Bar dataKey="qty" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={20} name="Cancel Qty" />
                     </BarChart>
@@ -646,18 +652,17 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             </div>
           </div>
 
-          {/* WASTE DEEP DIVE CHARTS (Nới rộng Width & Thêm tickFormatter cho Tên CH dài) */}
+          {/* WASTE DEEP DIVE CHARTS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
             <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
               <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste Qty by Store</h3>
               <div className="flex-1 w-full relative min-h-[300px]">
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={wasteByStoreData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                    <BarChart data={wasteByStoreData} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" hide />
-                      {/* Đã tăng width lên 180 và tự động cắt chữ dài */}
-                      <YAxis dataKey="name" type="category" width={180} tick={{fontSize: 10}} axisLine={false} tickLine={false} tickFormatter={(val) => val.length > 22 ? val.substring(0, 22) + '...' : val} />
+                      <YAxis dataKey="name" type="category" width={60} tick={{fontSize: 10, fontWeight: 500}} axisLine={false} tickLine={false} />
                       <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#fef2f2'}} />
                       <Bar dataKey="qty" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={20} name="Waste Qty" />
                     </BarChart>
