@@ -309,7 +309,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           }
         }
 
-        // Lấy số liệu Target Waste
         if (tType === 'Target' && tInfo.toLowerCase() === 'waste') {
           if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
           wasteByStoreMap[storeCode].target += qty;
@@ -357,8 +356,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Others').sort((a, b) => a.group.localeCompare(b.group)); 
 
     const cReasonData = Object.keys(cancelReasonMap).map(k => ({ name: k, qty: cancelReasonMap[k] })).sort((a, b) => b.qty - a.qty);
-    // Sắp xếp mảng Waste Store Data dựa trên số Actual
-    const wStoreData = Object.values(wasteByStoreMap).sort((a, b) => b.actual - a.actual);
+    
+    // TÍNH TOÁN SỐ NGÀY ĐANG LỌC ĐỂ TÍNH AVERAGE WASTE
+    const diffDaysTotal = Math.max(1, Math.round((endTime - startTime) / 86400000) + 1);
+
+    const wStoreData = Object.values(wasteByStoreMap).map(s => ({
+      ...s,
+      avgWaste: s.actual / diffDaysTotal
+    })).sort((a, b) => b.actual - a.actual);
+    
     const wColors = ['#ef4444', '#f97316', '#f59e0b', '#fbbf24', '#eab308', '#84cc16', '#22c55e', '#0ea5e9', '#3b82f6', '#8b5cf6', '#d946ef'];
     const wGroupData = Object.keys(wasteGroupMap).map((k, i) => ({ name: k, value: wasteGroupMap[k], color: wColors[i % wColors.length] })).sort((a, b) => b.value - a.value);
 

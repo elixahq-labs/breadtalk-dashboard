@@ -238,6 +238,7 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                     <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#fef2f2'}} />
                     <Bar dataKey="actual" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={24} name="Actual Waste" />
                     <Line type="monotone" dataKey="target" stroke="#f59e0b" strokeWidth={3} dot={{r: 4}} name="Waste Target" />
+                    <Line type="monotone" dataKey="avgWaste" stroke="#3b82f6" strokeWidth={3} dot={{r: 4}} name="Average Waste" />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -292,6 +293,7 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                     <tr className="bg-blue-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-blue-800 uppercase text-xs">Group: {g.group}</td></tr>
                     {g.items.map((item: any, i: number) => (
                       <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                        {/* CẬP NHẬT: Xóa truncate, sử dụng whitespace-normal break-words để tự xuống dòng không bị ẩn */}
                         <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td>
                         <td className="py-2 px-2 font-medium whitespace-normal break-words min-w-[150px] leading-snug">{item.name}</td>
                         <td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
