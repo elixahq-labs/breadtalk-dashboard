@@ -62,7 +62,10 @@ function InventoryTab({ data, utils }: { data: any, utils: any }) {
             <tbody>
               {data.gapData.map((row:any, idx:number) => (
                 <tr key={idx} className="border-b border-gray-100 text-gray-700 hover:bg-gray-50">
-                  <td className="py-3 px-2 text-xs sm:text-sm">{row.group}</td><td className="py-3 px-2 text-xs sm:text-sm">{row.sku}</td><td className="py-3 px-2 font-medium truncate max-w-[150px] sm:max-w-[200px]" title={row.name}>{row.name}</td>
+                  <td className="py-3 px-2 text-xs sm:text-sm">{row.group}</td>
+                  <td className="py-3 px-2 text-xs sm:text-sm">{row.sku}</td>
+                  {/* CẬP NHẬT TẠI ĐÂY: Xóa truncate, dùng whitespace-normal break-words min-w-[250px] để dài ra 50% */}
+                  <td className="py-3 px-2 font-medium whitespace-normal break-words min-w-[250px] sm:min-w-[300px] leading-snug">{row.name}</td>
                   <td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.open)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.process)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.import)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.export)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.sales)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.waste)}</td><td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.stock)}</td>
                   <td className={`py-3 px-2 text-right font-bold text-xs sm:text-sm ${row.gap < 0 ? 'text-red-600' : 'text-orange-500'}`}>{formatUS(row.gap)}</td>
                 </tr>

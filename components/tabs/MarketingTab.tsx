@@ -9,20 +9,21 @@ function MarketingTab({ data, utils }: { data: any, utils: any }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
         <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Promotion Revenue</p>
-          <div className="flex flex-col mt-2"><p className="text-xl sm:text-3xl font-bold text-blue-600 truncate" title={formatUS(data.promoRev)}>{formatUS(data.promoRev)}</p>{renderPoP(data.promoRev, data.prevStats.promoRev, false)}</div>
+          {/* CẬP NHẬT TẠI ĐÂY: Xóa truncate, dùng text-lg sm:text-3xl và break-words */}
+          <div className="flex flex-col mt-2"><p className="text-lg sm:text-3xl font-bold text-blue-600 break-words leading-tight">{formatUS(data.promoRev)}</p>{renderPoP(data.promoRev, data.prevStats.promoRev, false)}</div>
         </div>
         <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Total Discount</p>
-          <div className="flex flex-col mt-2"><p className="text-xl sm:text-3xl font-bold text-orange-500 truncate" title={formatUS(data.promoDisc)}>{formatUS(data.promoDisc)}</p>{renderPoP(data.promoDisc, data.prevStats.promoDisc, true)}</div>
+          <div className="flex flex-col mt-2"><p className="text-lg sm:text-3xl font-bold text-orange-500 break-words leading-tight">{formatUS(data.promoDisc)}</p>{renderPoP(data.promoDisc, data.prevStats.promoDisc, true)}</div>
         </div>
         <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Promotion Qty</p>
-          <div className="flex flex-col mt-2"><p className="text-xl sm:text-3xl font-bold text-gray-800 truncate">{formatUS(data.promoQty)}</p>{renderPoP(data.promoQty, data.prevStats.promoQty, false)}</div>
+          <div className="flex flex-col mt-2"><p className="text-lg sm:text-3xl font-bold text-gray-800 break-words leading-tight">{formatUS(data.promoQty)}</p>{renderPoP(data.promoQty, data.prevStats.promoQty, false)}</div>
         </div>
         <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Promo / Total Revenue (%)</p>
           <div className="flex flex-col mt-2">
-            <p className="text-xl sm:text-3xl font-bold text-gray-800 truncate">
+            <p className="text-lg sm:text-3xl font-bold text-gray-800 break-words leading-tight">
               {data.revAfterDisc > 0 ? formatUS((data.promoRev / data.revAfterDisc) * 100) : 0}%
             </p>
           </div>
@@ -99,7 +100,8 @@ function MarketingTab({ data, utils }: { data: any, utils: any }) {
             <tbody>
               {data.promoList.map((row:any, idx:number) => (
                 <tr key={idx} className="border-b border-gray-100 text-gray-700 hover:bg-gray-50">
-                  <td className="py-3 px-2 font-medium text-xs sm:text-sm truncate max-w-[200px]" title={row.name}>{row.name}</td>
+                  {/* CẬP NHẬT TẠI ĐÂY: Xóa truncate, dùng whitespace-normal break-words min-w-[260px] */}
+                  <td className="py-3 px-2 font-medium text-xs sm:text-sm whitespace-normal break-words min-w-[260px] sm:min-w-[300px] leading-snug">{row.name}</td>
                   <td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.qty)}</td>
                   <td className="py-3 px-2 text-right text-xs sm:text-sm">{formatUS(row.sales)}</td>
                   <td className="py-3 px-2 text-right text-xs sm:text-sm text-orange-500">{formatUS(row.discount)}</td>
