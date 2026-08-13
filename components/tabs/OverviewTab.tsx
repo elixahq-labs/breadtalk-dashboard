@@ -129,7 +129,8 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                 <LineChart data={data.trendData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                  <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
+                  {/* CẬP NHẬT: Tăng width lên 45 để hiện đầy đủ số liệu > 100 */}
+                  <YAxis width={45} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
                   <Tooltip formatter={(value: any) => formatUS(value)} />
                   <Line type="monotone" dataKey="waste" stroke="#ef4444" strokeWidth={3} dot={{r:3}} name="Waste Qty" />
                 </LineChart>
@@ -176,19 +177,24 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+        {/* CẬP NHẬT: Thay đổi thành biểu đồ kết hợp (ComposedChart) Actual vs Target */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-          <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste Qty by Store</h3>
+          <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste vs Target by Store</h3>
           <div className="flex-1 w-full relative min-h-[300px]">
-            <div className="absolute inset-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.wasteByStoreData} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" width={60} tick={{fontSize: 10, fontWeight: 500}} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#fef2f2'}} />
-                  <Bar dataKey="qty" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={20} name="Waste Qty" />
-                </BarChart>
-              </ResponsiveContainer>
+            {/* Lớp bọc cho phép scroll lướt ngang trên điện thoại nếu có quá nhiều cửa hàng */}
+            <div className="absolute inset-0 overflow-x-auto overflow-y-hidden">
+              <div className="h-full min-w-[400px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={data.wasteByStoreData} margin={{ top: 20, right: 5, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 500}} />
+                    <YAxis width={45} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
+                    <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#fef2f2'}} />
+                    <Bar dataKey="actual" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={24} name="Actual Waste" />
+                    <Line type="monotone" dataKey="target" stroke="#f59e0b" strokeWidth={3} dot={{r: 4}} name="Waste Target" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>
@@ -230,7 +236,7 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="sticky top-0 bg-white shadow-sm z-10">
                 <tr className="text-gray-500 border-b border-gray-100">
-                  <th className="pb-2 font-medium px-1">SKU</th><th className="pb-2 font-medium px-1">Product</th><th className="pb-2 font-medium px-1 text-right">Qty</th>
+                  <th className="pb-2 font-medium px-2">SKU</th><th className="pb-2 font-medium px-2">Product</th><th className="pb-2 font-medium px-2 text-right">Qty</th>
                 </tr>
               </thead>
               <tbody>
@@ -239,7 +245,10 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                     <tr className="bg-blue-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-blue-800 uppercase text-xs">Group: {g.group}</td></tr>
                     {g.items.map((item: any, i: number) => (
                       <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td><td className="py-2 px-1 font-medium truncate max-w-[150px] sm:max-w-[250px]" title={item.name}>{item.name}</td><td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
+                        {/* CẬP NHẬT: Xóa truncate, sử dụng whitespace-normal break-words để tự xuống dòng không bị ẩn */}
+                        <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td>
+                        <td className="py-2 px-2 font-medium whitespace-normal break-words min-w-[150px] leading-snug">{item.name}</td>
+                        <td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
                       </tr>
                     ))}
                   </React.Fragment>
@@ -254,7 +263,7 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="sticky top-0 bg-white shadow-sm z-10">
                 <tr className="text-gray-500 border-b border-gray-100">
-                  <th className="pb-2 font-medium px-1">SKU</th><th className="pb-2 font-medium px-1">Product</th><th className="pb-2 font-medium px-1 text-right">Qty</th>
+                  <th className="pb-2 font-medium px-2">SKU</th><th className="pb-2 font-medium px-2">Product</th><th className="pb-2 font-medium px-2 text-right">Qty</th>
                 </tr>
               </thead>
               <tbody>
@@ -263,7 +272,10 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                     <tr className="bg-red-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-red-800 uppercase text-xs">Group: {g.group}</td></tr>
                     {g.items.map((item: any, i: number) => (
                       <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td><td className="py-2 px-1 font-medium truncate max-w-[150px] sm:max-w-[250px]" title={item.name}>{item.name}</td><td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
+                        {/* CẬP NHẬT TƯƠNG TỰ BẢNG TRÊN */}
+                        <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td>
+                        <td className="py-2 px-2 font-medium whitespace-normal break-words min-w-[150px] leading-snug">{item.name}</td>
+                        <td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
                       </tr>
                     ))}
                   </React.Fragment>

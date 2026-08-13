@@ -119,7 +119,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
     const promoMap: Record<string, any> = {}; 
 
-    const wasteByStoreMap: Record<string, number> = {};
+    // Đã thay đổi kiểu dữ liệu để chứa cả actual và target
+    const wasteByStoreMap: Record<string, { name: string, actual: number, target: number }> = {};
     const wasteGroupMap: Record<string, number> = {};
     const cancelReasonMap: Record<string, number> = {};
 
@@ -148,7 +149,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const startTime = parseInputDate(startDate) || minTime;
     const endTime = parseInputDate(endDate) || maxTime;
     
-    // THUẬT TOÁN ĐIỀU CHỈNH CHU KỲ (THÁNG, QUÝ, NĂM) THÔNG MINH
     const shiftDate = (timestamp: number, months: number) => {
       const d = new Date(timestamp);
       const expectedMonth = (d.getMonth() + months) % 12;
@@ -227,10 +227,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       if (sku) {
         const key = `${groupName}_${sku}`;
         if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open:0, process:0, import:0, export:0, sales:0, waste:0, stock:0, gap:0 };
-        
         if (tType === 'Stock' && rowTime === openTime) gapMap[key].open += qty;
         if (tType === 'Stock' && rowTime === endTime) gapMap[key].stock += qty;
-        
         if (isCurrentPeriod) {
           if (tType === 'Process') gapMap[key].process += qty;
           if (tType === 'Import') gapMap[key].import += qty;
@@ -286,7 +284,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         
         if (tType === 'Commissions') curCommissions += salesVal;
         if (tType === 'Count-Bills') { countBills += qty; trendMap[day].countBill += qty; }
-        if (tType === 'Target') trendMap[day].target += salesVal;
+        if (tType === 'Target' && tInfo.toLowerCase() !== 'waste') trendMap[day].target += salesVal;
         if (tType === 'Payment') paymentMap[tInfo || 'Others'] = (paymentMap[tInfo || 'Others'] || 0) + salesVal;
 
         if (tType === 'Cancel') { 
@@ -299,7 +297,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         if (tType === 'Waste') {
           waste += qty; trendMap[day].waste += qty;
           
-          wasteByStoreMap[storeCode] = (wasteByStoreMap[storeCode] || 0) + qty;
+          if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
+          wasteByStoreMap[storeCode].actual += qty;
+          
           wasteGroupMap[groupName] = (wasteGroupMap[groupName] || 0) + qty;
 
           if (sku) {
@@ -307,6 +307,12 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             if (!wasteMapByGroup[groupName][sku]) wasteMapByGroup[groupName][sku] = { sku, name, qty: 0 };
             wasteMapByGroup[groupName][sku].qty += qty;
           }
+        }
+
+        // Lấy số liệu Target Waste
+        if (tType === 'Target' && tInfo.toLowerCase() === 'waste') {
+          if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
+          wasteByStoreMap[storeCode].target += qty;
         }
 
         if (tType === 'Promotion') {
@@ -351,7 +357,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Others').sort((a, b) => a.group.localeCompare(b.group)); 
 
     const cReasonData = Object.keys(cancelReasonMap).map(k => ({ name: k, qty: cancelReasonMap[k] })).sort((a, b) => b.qty - a.qty);
-    const wStoreData = Object.keys(wasteByStoreMap).map(k => ({ name: k, qty: wasteByStoreMap[k] })).sort((a, b) => b.qty - a.qty);
+    // Sắp xếp mảng Waste Store Data dựa trên số Actual
+    const wStoreData = Object.values(wasteByStoreMap).sort((a, b) => b.actual - a.actual);
     const wColors = ['#ef4444', '#f97316', '#f59e0b', '#fbbf24', '#eab308', '#84cc16', '#22c55e', '#0ea5e9', '#3b82f6', '#8b5cf6', '#d946ef'];
     const wGroupData = Object.keys(wasteGroupMap).map((k, i) => ({ name: k, value: wasteGroupMap[k], color: wColors[i % wColors.length] })).sort((a, b) => b.value - a.value);
 
