@@ -4,15 +4,18 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
 import { Loader2 } from 'lucide-react';
 
-// IMPORT 3 TABS (GIAO DIỆN)
+// IMPORT TABS GIAO DIỆN
 import OverviewTab from './tabs/OverviewTab';
 import MarketingTab from './tabs/MarketingTab';
 import ReviewsTab from './tabs/ReviewsTab';
+import WorkforceAnalyticsTab from './tabs/WorkforceAnalyticsTab';
+import PnLTab from './tabs/PnLTab';
 
 export default function DashboardClient({ fileNames }: { fileNames: string[] }) {
   const [rawData, setRawData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ĐIỀU HƯỚNG TAB: 'Overview', 'Marketing', 'Reviews', 'HR', 'PnL'
   const [activeTab, setActiveTab] = useState('Overview');
 
   const [storeFilter, setStoreFilter] = useState('All');
@@ -78,7 +81,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     });
   }, [rawData, storeFilter, groupFilter]);
 
-  // NƠI XỬ LÝ TOÀN BỘ LOGIC (BỘ NÃO)
+  // BỘ NÃO TÍNH TOÁN DỮ LIỆU
   const calculatedData = useMemo(() => {
     let curRev = 0, curRevAfterDisc = 0, curCommissions = 0, curVat = 0;
     let totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0, salesQty = 0;
@@ -257,7 +260,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
         if (tType === 'Waste') {
           waste += qty; trendMap[day].waste += qty;
-          
           wasteByStoreMap[storeCode] = (wasteByStoreMap[storeCode] || 0) + qty;
           wasteGroupMap[groupName] = (wasteGroupMap[groupName] || 0) + qty;
 
@@ -373,7 +375,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     };
   }, [baseFilteredData, startDate, endDate, rawData, reviewFilter]);
 
-  // HÀM RENDER CHỈ SỐ SO SÁNH (PoP) TRUYỀN XUỐNG TABS
   const renderPoP = (current: number, prev: number, inverseColor: boolean = false) => {
     if (!prev || prev === 0) return <span className="text-[10px] sm:text-xs text-gray-400 ml-2 font-normal">--</span>; 
     if (current === prev) return null; 
@@ -396,7 +397,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   return (
     <div className="p-3 sm:p-6 bg-[#f8f9fa] min-h-screen font-sans text-gray-800">
       
-      {/* HEADER & GLOBAL SLICERS */}
+      {/* GLOBAL SLICERS */}
       <div className="mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-50">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
           <h1 className="text-lg md:text-xl font-bold text-gray-900">Operations Dashboard</h1>
@@ -404,6 +405,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             <button onClick={() => setActiveTab('Overview')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Overview' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Overview</button>
             <button onClick={() => setActiveTab('Marketing')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Marketing' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Marketing</button>
             <button onClick={() => setActiveTab('Reviews')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Reviews' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Reviews & Mistakes</button>
+            <button onClick={() => setActiveTab('HR')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'HR' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Human Resources</button>
+            <button onClick={() => setActiveTab('PnL')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'PnL' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>P&L</button>
           </div>
         </div>
 
@@ -442,6 +445,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       {activeTab === 'Overview' && <OverviewTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
       {activeTab === 'Marketing' && <MarketingTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
       {activeTab === 'Reviews' && <ReviewsTab data={calculatedData} utils={{ formatUS, renderPoP }} reviewFilter={reviewFilter} />}
+      {activeTab === 'HR' && <WorkforceAnalyticsTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
+      {activeTab === 'PnL' && <PnLTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
       
     </div>
   );
