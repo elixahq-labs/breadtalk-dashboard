@@ -85,21 +85,22 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   // CORE DATA PROCESSING
   const { 
     revenue, revAfterDisc, commissions, vatValue, royalty, trueNetRevenue, 
-    totalBills, aov, discountRateTB, wasteQty, cancelRate, 
+    totalBills, aov, discountRateTB, wasteQty, wasteRatio, cancelRate, 
     trendData, paymentData, topSalesByGroup, topWasteByGroup, 
+    wasteByStoreData, wasteByGroupData, cancelReasonData,
     agingTickets, pendingStats, gapData, filteredCount, prevStats,
     promoRev, promoDisc, promoQty, promoList, topPromoByQty, topPromoByRev,
     avgMapsRating, avgCusRating, totalReviews, reviewList, 
     mapsDistData, cusDistData, totalMistakes, mistakeList, mistakeCatDist
   } = useMemo(() => {
     
-    // CURRENT PERIOD VARS (Financial)
+    // CURRENT PERIOD VARS
     let curRev = 0, curRevAfterDisc = 0, curCommissions = 0, curVat = 0;
-    let totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0;
+    let totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0, salesQty = 0;
     
-    // PREVIOUS PERIOD VARS (Financial)
+    // PREVIOUS PERIOD VARS
     let prevRev = 0, prevRevAfterDisc = 0, prevCommissions = 0, prevVat = 0;
-    let prevTotalDiscount = 0, prevCountBills = 0, prevCancelBills = 0, prevWaste = 0;
+    let prevTotalDiscount = 0, prevCountBills = 0, prevCancelBills = 0, prevWaste = 0, prevSalesQty = 0;
 
     let mktPromoRev = 0, mktPromoDisc = 0, mktPromoQty = 0;
     let prevMktPromoRev = 0, prevMktPromoDisc = 0, prevMktPromoQty = 0;
@@ -118,6 +119,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const salesMapByGroup: Record<string, Record<string, any>> = {};
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
     const promoMap: Record<string, any> = {}; 
+
+    // WASTE & CANCEL ANALYSIS VARS
+    const wasteByStoreMap: Record<string, number> = {};
+    const wasteGroupMap: Record<string, number> = {};
+    const cancelReasonMap: Record<string, number> = {};
 
     // REVIEWS & MISTAKES VARS
     let mapsSumRating = 0, mapsCountRating = 0;
@@ -181,31 +187,19 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       // --- 1. PREVIOUS PERIOD LOGIC (PoP) ---
       if (isPrevPeriod) {
         if (tType === 'Sales') { 
-          prevRev += salesVal; 
-          prevRevAfterDisc += gross; 
-          prevTotalDiscount += disc; 
-          prevVat += rowVat;
+          prevRev += salesVal; prevRevAfterDisc += gross; prevTotalDiscount += disc; prevVat += rowVat; prevSalesQty += qty; 
         }
         if (tType === 'Commissions') prevCommissions += salesVal;
-        
         if (tType === 'Count-Bills') prevCountBills += qty;
         if (tType === 'Cancel') prevCancelBills += qty;
         if (tType === 'Waste') prevWaste += qty;
-        
-        if (tType === 'Promotion') {
-          prevMktPromoRev += gross;
-          prevMktPromoDisc += disc;
-          prevMktPromoQty += qty;
-        }
+        if (tType === 'Promotion') { prevMktPromoRev += gross; prevMktPromoDisc += disc; prevMktPromoQty += qty; }
         if (tType === 'Cus-Reviews' || tType === 'Reviews') {
           if (passReviewFilter && qty > 0 && qty <= 5) {
-             if (isMapsReview) { prevMapsSumRating += qty; prevMapsCountRating++; }
-             else { prevCusSumRating += qty; prevCusCountRating++; }
+             if (isMapsReview) { prevMapsSumRating += qty; prevMapsCountRating++; } else { prevCusSumRating += qty; prevCusCountRating++; }
           }
         }
-        if (tType === 'Mistake') {
-          prevCountMistakes += qty;
-        }
+        if (tType === 'Mistake') prevCountMistakes += qty;
       }
 
       // --- 2. GAP LOGIC ---
@@ -234,23 +228,13 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                const rounded = Math.round(qty);
                if (isMapsReview) {
                  mapsSumRating += qty; mapsCountRating++;
-                 if (rounded === 5) mapsRatingCountMap['5 Stars']++;
-                 else if (rounded === 4) mapsRatingCountMap['4 Stars']++;
-                 else if (rounded === 3) mapsRatingCountMap['3 Stars']++;
-                 else if (rounded === 2) mapsRatingCountMap['2 Stars']++;
-                 else if (rounded === 1) mapsRatingCountMap['1 Star']++;
+                 if (rounded === 5) mapsRatingCountMap['5 Stars']++; else if (rounded === 4) mapsRatingCountMap['4 Stars']++; else if (rounded === 3) mapsRatingCountMap['3 Stars']++; else if (rounded === 2) mapsRatingCountMap['2 Stars']++; else if (rounded === 1) mapsRatingCountMap['1 Star']++;
                } else {
                  cusSumRating += qty; cusCountRating++;
-                 if (rounded === 5) cusRatingCountMap['5 Stars']++;
-                 else if (rounded === 4) cusRatingCountMap['4 Stars']++;
-                 else if (rounded === 3) cusRatingCountMap['3 Stars']++;
-                 else if (rounded === 2) cusRatingCountMap['2 Stars']++;
-                 else if (rounded === 1) cusRatingCountMap['1 Star']++;
+                 if (rounded === 5) cusRatingCountMap['5 Stars']++; else if (rounded === 4) cusRatingCountMap['4 Stars']++; else if (rounded === 3) cusRatingCountMap['3 Stars']++; else if (rounded === 2) cusRatingCountMap['2 Stars']++; else if (rounded === 1) cusRatingCountMap['1 Star']++;
                }
             }
-            if (tType === 'Reviews' && mistakeDetails) {
-               rList.push({ date: dateStr || 'N/A', store: store, rating: qty, source: sourceMistake, text: mistakeDetails });
-            }
+            if (tType === 'Reviews' && mistakeDetails) rList.push({ date: dateStr || 'N/A', store: store, rating: qty, source: sourceMistake, text: mistakeDetails });
           }
         }
 
@@ -271,13 +255,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         if (!trendMap[day]) trendMap[day] = { day, revenue: 0, target: 0, discountAmt: 0, waste: 0, countBill: 0, cancel: 0, promoRevenue: 0 };
 
         if (tType === 'Sales') {
-          curRev += salesVal;
-          curRevAfterDisc += gross; 
-          curVat += rowVat;
-          totalDiscount += disc; 
-          trendMap[day].revenue += gross; // Chart dùng Revenue after discount
-          trendMap[day].discountAmt += disc;
-          
+          curRev += salesVal; curRevAfterDisc += gross; curVat += rowVat; totalDiscount += disc; salesQty += qty;
+          trendMap[day].revenue += gross; trendMap[day].discountAmt += disc;
           if (sku) {
             if (!salesMapByGroup[groupName]) salesMapByGroup[groupName] = {};
             if (!salesMapByGroup[groupName][sku]) salesMapByGroup[groupName][sku] = { sku, name, qty: 0 };
@@ -286,14 +265,24 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         }
         
         if (tType === 'Commissions') curCommissions += salesVal;
-
         if (tType === 'Count-Bills') { countBills += qty; trendMap[day].countBill += qty; }
-        if (tType === 'Cancel') { cancelBills += qty; trendMap[day].cancel += qty; }
         if (tType === 'Target') trendMap[day].target += salesVal;
         if (tType === 'Payment') paymentMap[tInfo || 'Others'] = (paymentMap[tInfo || 'Others'] || 0) + salesVal;
 
+        // CANCEL TICKETS
+        if (tType === 'Cancel') { 
+          cancelBills += qty; 
+          trendMap[day].cancel += qty; 
+          const cReason = tInfo || 'Others';
+          cancelReasonMap[cReason] = (cancelReasonMap[cReason] || 0) + qty;
+        }
+
+        // WASTE AGGREGATION
         if (tType === 'Waste') {
           waste += qty; trendMap[day].waste += qty;
+          wasteByStoreMap[store] = (wasteByStoreMap[store] || 0) + qty;
+          wasteGroupMap[groupName] = (wasteGroupMap[groupName] || 0) + qty;
+
           if (sku) {
             if (!wasteMapByGroup[groupName]) wasteMapByGroup[groupName] = {};
             if (!wasteMapByGroup[groupName][sku]) wasteMapByGroup[groupName][sku] = { sku, name, qty: 0 };
@@ -310,14 +299,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         }
 
         if (tType === 'Ticket') { 
-          if (tInfo === 'Waste-Ticket' && qty > 0) {
-            if (!wasteTrackMap[store]) wasteTrackMap[store] = {};
-            wasteTrackMap[store][dateStr] = true;
-          }
-          if (tInfo === 'Stock-Ticket' && qty > 0) {
-            if (!stockTrackMap[store]) stockTrackMap[store] = {};
-            stockTrackMap[store][dateStr] = true;
-          }
+          if (tInfo === 'Waste-Ticket' && qty > 0) { if (!wasteTrackMap[store]) wasteTrackMap[store] = {}; wasteTrackMap[store][dateStr] = true; }
+          if (tInfo === 'Stock-Ticket' && qty > 0) { if (!stockTrackMap[store]) stockTrackMap[store] = {}; stockTrackMap[store][dateStr] = true; }
           if (['Buying-Ticket', 'Process-Ticket', 'Import-Ticket'].includes(tInfo)) {
             if (tInfo === 'Buying-Ticket') pStats.buying += qty;
             if (tInfo === 'Process-Ticket') pStats.process += qty;
@@ -333,20 +316,26 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       }
     });
 
-    // TÍNH TOÁN FINANCIALS CUỐI CÙNG
     const curRoyalty = (curRevAfterDisc - curCommissions - curVat) * 0.05;
     const curNetRevenue = curRevAfterDisc - curCommissions - curVat - curRoyalty;
+    const curWasteRatio = (salesQty + waste) > 0 ? (waste / (salesQty + waste)) * 100 : 0;
 
     const prevRoyalty = (prevRevAfterDisc - prevCommissions - prevVat) * 0.05;
     const prevNetRevenue = prevRevAfterDisc - prevCommissions - prevVat - prevRoyalty;
+    const pWasteRatio = (prevSalesQty + prevWaste) > 0 ? (prevWaste / (prevSalesQty + prevWaste)) * 100 : 0;
 
-    // ĐÓNG GÓI CÁC BẢNG DỮ LIỆU
     const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
     const pColors = ['#2563eb', '#f97316', '#10b981', '#fbbf24', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
     const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ group, items: Object.values(salesMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ group, items: Object.values(wasteMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Others').sort((a, b) => a.group.localeCompare(b.group)); 
+
+    // CANCEL REASONS & WASTE ANALYSIS CHARTS
+    const cReasonData = Object.keys(cancelReasonMap).map(k => ({ name: k, qty: cancelReasonMap[k] })).sort((a, b) => b.qty - a.qty);
+    const wStoreData = Object.keys(wasteByStoreMap).map(k => ({ name: k, qty: wasteByStoreMap[k] })).sort((a, b) => b.qty - a.qty);
+    const wColors = ['#ef4444', '#f97316', '#f59e0b', '#fbbf24', '#eab308', '#84cc16', '#22c55e', '#0ea5e9', '#3b82f6', '#8b5cf6', '#d946ef'];
+    const wGroupData = Object.keys(wasteGroupMap).map((k, i) => ({ name: k, value: wasteGroupMap[k], color: wColors[i % wColors.length] })).sort((a, b) => b.value - a.value);
 
     const allTickets = Object.values(ticketAgg).filter(t => t.qty > 0);
     const missingTicketsList: any[] = [];
@@ -385,31 +374,21 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const mCatDistData = Object.keys(mistakeCatMap).map(k => ({ name: k, qty: mistakeCatMap[k] })).sort((a, b) => b.qty - a.qty);
 
     const prevStatsResult = {
-      revenue: prevRev,
-      revAfterDisc: prevRevAfterDisc,
-      commissions: prevCommissions,
-      vatValue: prevVat,
-      royalty: prevRoyalty,
-      trueNetRevenue: prevNetRevenue,
-      totalBills: prevCountBills,
-      aov: prevCountBills > 0 ? prevRevAfterDisc / prevCountBills : 0,
-      discountRateTB: prevRevAfterDisc > 0 ? (prevTotalDiscount / prevRevAfterDisc) * 100 : 0,
-      wasteQty: prevWaste,
-      cancelRate: prevCountBills > 0 ? (prevCancelBills / prevCountBills) * 100 : 0,
-      promoRev: prevMktPromoRev,
-      promoDisc: prevMktPromoDisc,
-      promoQty: prevMktPromoQty,
-      prevAvgMaps: prevMapsCountRating > 0 ? prevMapsSumRating / prevMapsCountRating : 0,
-      prevAvgCus: prevCusCountRating > 0 ? prevCusSumRating / prevCusCountRating : 0,
-      prevTotalReviews: prevMapsCountRating + prevCusCountRating,
-      prevTotalMistakes: prevCountMistakes
+      revenue: prevRev, revAfterDisc: prevRevAfterDisc, commissions: prevCommissions, vatValue: prevVat, royalty: prevRoyalty, trueNetRevenue: prevNetRevenue,
+      totalBills: prevCountBills, aov: prevCountBills > 0 ? prevRevAfterDisc / prevCountBills : 0, discountRateTB: prevRevAfterDisc > 0 ? (prevTotalDiscount / prevRevAfterDisc) * 100 : 0,
+      wasteQty: prevWaste, wasteRatio: pWasteRatio, cancelRate: prevCountBills > 0 ? (prevCancelBills / prevCountBills) * 100 : 0, 
+      promoRev: prevMktPromoRev, promoDisc: prevMktPromoDisc, promoQty: prevMktPromoQty,
+      prevAvgMaps: prevMapsCountRating > 0 ? prevMapsSumRating / prevMapsCountRating : 0, prevAvgCus: prevCusCountRating > 0 ? prevCusSumRating / prevCusCountRating : 0,
+      prevTotalReviews: prevMapsCountRating + prevCusCountRating, prevTotalMistakes: prevCountMistakes
     };
 
     return {
       revenue: curRev, revAfterDisc: curRevAfterDisc, commissions: curCommissions, vatValue: curVat, royalty: curRoyalty, trueNetRevenue: curNetRevenue,
       totalBills: countBills, aov: countBills > 0 ? curRevAfterDisc / countBills : 0, discountRateTB: curRevAfterDisc > 0 ? (totalDiscount / curRevAfterDisc) * 100 : 0,
-      wasteQty: waste, cancelRate: countBills > 0 ? (cancelBills / countBills) * 100 : 0,
-      trendData: tData, paymentData: pData, topSalesByGroup: tSalesGroup, topWasteByGroup: tWasteGroup, agingTickets: finalAgingTickets, pendingStats: pStats, gapData: gData, filteredCount: fCount,
+      wasteQty: waste, wasteRatio: curWasteRatio, cancelRate: countBills > 0 ? (cancelBills / countBills) * 100 : 0,
+      trendData: tData, paymentData: pData, topSalesByGroup: tSalesGroup, topWasteByGroup: tWasteGroup, 
+      wasteByStoreData: wStoreData, wasteByGroupData: wGroupData, cancelReasonData: cReasonData,
+      agingTickets: finalAgingTickets, pendingStats: pStats, gapData: gData, filteredCount: fCount,
       promoRev: mktPromoRev, promoDisc: mktPromoDisc, promoQty: mktPromoQty, promoList: mktPromoList, topPromoByQty: mktTopByQty, topPromoByRev: mktTopByRev,
       avgMapsRating: aMapsRating, avgCusRating: aCusRating, totalReviews: tReviews, reviewList: rList, mapsDistData: mDistData, cusDistData: cDistData,
       totalMistakes: countMistakes, mistakeList: mList, mistakeCatDist: mCatDistData,
@@ -554,6 +533,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
               <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUS(wasteQty)}</p>{renderPoP(wasteQty, prevStats.wasteQty, true)}</div>
             </div>
             <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Waste Ratio</p>
+              <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUS(wasteRatio)}%</p>{renderPoP(wasteRatio, prevStats.wasteRatio, true)}</div>
+            </div>
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
               <p className="text-xs sm:text-sm text-gray-500 font-medium">Cancel rate</p>
               <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(cancelRate)}%</p>{renderPoP(cancelRate, prevStats.cancelRate, true)}</div>
             </div>
@@ -634,6 +617,90 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
                       <Line type="monotone" dataKey="waste" stroke="#ef4444" strokeWidth={3} dot={{r:3}} name="Waste Qty" />
                     </LineChart>
                   </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Daily Cancel Qty</h3>
+              <div className="flex-1 w-full relative min-h-[250px]">
+                <div className="absolute inset-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={trendData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
+                      <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
+                      <Tooltip formatter={(value: any) => formatUS(value)} />
+                      <Line type="monotone" dataKey="cancel" stroke="#8b5cf6" strokeWidth={3} dot={{r:3}} name="Cancel Qty" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Cancel Reasons</h3>
+              <div className="flex-1 w-full relative min-h-[250px]">
+                <div className="absolute inset-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={cancelReasonData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                      <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f5f3ff'}} />
+                      <Bar dataKey="qty" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={20} name="Cancel Qty" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste Qty by Store</h3>
+              <div className="flex-1 w-full relative min-h-[300px]">
+                <div className="absolute inset-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={wasteByStoreData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                      <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#fef2f2'}} />
+                      <Bar dataKey="qty" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={20} name="Waste Qty" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste Breakdown by Group (%)</h3>
+              <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6">
+                 <div className="h-48 sm:h-64 w-full md:w-1/2 shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={wasteByGroupData} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="value">
+                        {wasteByGroupData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip formatter={(value: any) => formatUS(value)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-full md:w-1/2 flex flex-col justify-center gap-1.5 sm:gap-2">
+                  {wasteByGroupData.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-gray-50 pb-1.5 last:border-0">
+                      <div className="flex items-start flex-1 min-w-0 pr-2">
+                        <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mr-1.5 sm:mr-2 mt-[3px] shrink-0" style={{ backgroundColor: p.color }}></span>
+                        <span className="text-gray-600 break-words leading-tight truncate" title={p.name}>{p.name}</span>
+                      </div>
+                      <span className="font-bold text-gray-900 shrink-0 text-right mt-[1px]">
+                        {formatUS(p.value)} <span className="text-gray-400 font-normal ml-1">({wasteQty > 0 ? ((p.value / wasteQty) * 100).toFixed(1) : 0}%)</span>
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
