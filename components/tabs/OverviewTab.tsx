@@ -65,10 +65,11 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
           <div className="flex-1 w-full relative min-h-[250px] sm:min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={data.trendData}>
+                <ComposedChart data={data.trendData} margin={{ top: 5, right: 5, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                  <YAxis width={40} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
+                  {/* Trục Y của Revenue dùng format compact nên bề rộng 45-50 là chuẩn */}
+                  <YAxis width={45} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
                   <Tooltip formatter={(value: any) => formatUS(value)} />
                   <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fill="#eff6ff" name="Revenue" />
                 </ComposedChart>
@@ -110,10 +111,10 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
           <div className="flex-1 w-full relative min-h-[250px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.trendData}>
+                <AreaChart data={data.trendData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                  <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
+                  <YAxis width={35} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
                   <Tooltip formatter={(value: any) => `${formatUS(value)}%`} />
                   <Area type="monotone" dataKey="discount" stroke="#ea580c" strokeWidth={3} fill="#fff7ed" name="Discount Rate" />
                 </AreaChart>
@@ -126,11 +127,11 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
           <div className="flex-1 w-full relative min-h-[250px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.trendData}>
+                {/* Đã tăng width YAxis lên 65 cho Daily Waste */}
+                <LineChart data={data.trendData} margin={{ top: 5, right: 5, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                  {/* CẬP NHẬT: Tăng width lên 45 để hiện đầy đủ số liệu > 100 */}
-                  <YAxis width={45} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
+                  <YAxis width={65} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
                   <Tooltip formatter={(value: any) => formatUS(value)} />
                   <Line type="monotone" dataKey="waste" stroke="#ef4444" strokeWidth={3} dot={{r:3}} name="Waste Qty" />
                 </LineChart>
@@ -146,10 +147,11 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
           <div className="flex-1 w-full relative min-h-[250px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.trendData}>
+                {/* Đã tăng width YAxis lên 65 cho Daily Cancel */}
+                <LineChart data={data.trendData} margin={{ top: 5, right: 5, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                  <YAxis width={30} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
+                  <YAxis width={65} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
                   <Tooltip formatter={(value: any) => formatUS(value)} />
                   <Line type="monotone" dataKey="cancel" stroke="#8b5cf6" strokeWidth={3} dot={{r:3}} name="Cancel Qty" />
                 </LineChart>
@@ -177,7 +179,6 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
-        {/* CẬP NHẬT: Thay đổi thành biểu đồ kết hợp (ComposedChart) Actual vs Target */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
           <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Waste vs Target by Store</h3>
           <div className="flex-1 w-full relative min-h-[300px]">
@@ -185,10 +186,11 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
             <div className="absolute inset-0 overflow-x-auto overflow-y-hidden">
               <div className="h-full min-w-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={data.wasteByStoreData} margin={{ top: 20, right: 5, left: 0, bottom: 5 }}>
+                  {/* CẬP NHẬT TẠI ĐÂY: Thêm left margin và tăng Width trục YAxis lên 65 */}
+                  <ComposedChart data={data.wasteByStoreData} margin={{ top: 20, right: 5, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 500}} />
-                    <YAxis width={45} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
+                    <YAxis width={65} axisLine={false} tickLine={false} tick={{fontSize: 10}} tickFormatter={(val) => formatUS(val)} />
                     <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#fef2f2'}} />
                     <Bar dataKey="actual" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={24} name="Actual Waste" />
                     <Line type="monotone" dataKey="target" stroke="#f59e0b" strokeWidth={3} dot={{r: 4}} name="Waste Target" />
@@ -245,7 +247,6 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                     <tr className="bg-blue-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-blue-800 uppercase text-xs">Group: {g.group}</td></tr>
                     {g.items.map((item: any, i: number) => (
                       <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                        {/* CẬP NHẬT: Xóa truncate, sử dụng whitespace-normal break-words để tự xuống dòng không bị ẩn */}
                         <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td>
                         <td className="py-2 px-2 font-medium whitespace-normal break-words min-w-[150px] leading-snug">{item.name}</td>
                         <td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
@@ -272,7 +273,6 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                     <tr className="bg-red-50 border-y border-gray-200"><td colSpan={3} className="py-2 px-2 font-bold text-red-800 uppercase text-xs">Group: {g.group}</td></tr>
                     {g.items.map((item: any, i: number) => (
                       <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                        {/* CẬP NHẬT TƯƠNG TỰ BẢNG TRÊN */}
                         <td className="py-2 px-2 text-xs sm:text-sm">{item.sku}</td>
                         <td className="py-2 px-2 font-medium whitespace-normal break-words min-w-[150px] leading-snug">{item.name}</td>
                         <td className="py-2 px-2 text-right font-semibold text-gray-700 text-xs sm:text-sm">{formatUS(item.qty)}</td>
