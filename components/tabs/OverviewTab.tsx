@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { AreaChart, Area, PieChart, Pie, Cell, ComposedChart, Line, LineChart, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-export default function OverviewTab({ data, utils }: { data: any, utils: any }) {
+function OverviewTab({ data, utils }: { data: any, utils: any }) {
   const { formatUS, renderPoP } = utils;
   
   return (
@@ -9,53 +9,53 @@ export default function OverviewTab({ data, utils }: { data: any, utils: any }) 
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Revenue</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate" title={formatUS(data.revenue)}>{formatUS(data.revenue)}</p>{renderPoP(data.revenue, data.prevStats.revenue, false)}</div>
+          <div className="flex flex-col mt-1"><p className="text-lg sm:text-2xl font-bold truncate" title={formatUS(data.revenue)}>{formatUS(data.revenue)}</p>{renderPoP(data.revenue, data.prevStats.revenue, false)}</div>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Revenue after discount</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-blue-600 truncate" title={formatUS(data.revAfterDisc)}>{formatUS(data.revAfterDisc)}</p>{renderPoP(data.revAfterDisc, data.prevStats.revAfterDisc, false)}</div>
+          <div className="flex flex-col mt-1"><p className="text-lg sm:text-2xl font-bold text-blue-600 truncate" title={formatUS(data.revAfterDisc)}>{formatUS(data.revAfterDisc)}</p>{renderPoP(data.revAfterDisc, data.prevStats.revAfterDisc, false)}</div>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Commissions</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate" title={formatUS(data.commissions)}>{formatUS(data.commissions)}</p>{renderPoP(data.commissions, data.prevStats.commissions, true)}</div>
+          <div className="flex flex-col mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate" title={formatUS(data.commissions)}>{formatUS(data.commissions)}</p>{renderPoP(data.commissions, data.prevStats.commissions, true)}</div>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">VAT</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate" title={formatUS(data.vatValue)}>{formatUS(data.vatValue)}</p>{renderPoP(data.vatValue, data.prevStats.vatValue, true)}</div>
+          <div className="flex flex-col mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate" title={formatUS(data.vatValue)}>{formatUS(data.vatValue)}</p>{renderPoP(data.vatValue, data.prevStats.vatValue, true)}</div>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Royalty (5%)</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate" title={formatUS(data.royalty)}>{formatUS(data.royalty)}</p>{renderPoP(data.royalty, data.prevStats.royalty, true)}</div>
+          <div className="flex flex-col mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate" title={formatUS(data.royalty)}>{formatUS(data.royalty)}</p>{renderPoP(data.royalty, data.prevStats.royalty, true)}</div>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Net revenue</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-green-600 truncate" title={formatUS(data.trueNetRevenue)}>{formatUS(data.trueNetRevenue)}</p>{renderPoP(data.trueNetRevenue, data.prevStats.trueNetRevenue, false)}</div>
+          <div className="flex flex-col mt-1"><p className="text-lg sm:text-2xl font-bold text-green-600 truncate" title={formatUS(data.trueNetRevenue)}>{formatUS(data.trueNetRevenue)}</p>{renderPoP(data.trueNetRevenue, data.prevStats.trueNetRevenue, false)}</div>
           <p className="text-[10px] text-gray-400 mt-1 italic">*Excluding OPEX & COGS</p>
         </div>
 
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Count-Bills</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(data.totalBills)}</p>{renderPoP(data.totalBills, data.prevStats.totalBills, false)}</div>
+          <div className="flex flex-col mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(data.totalBills)}</p>{renderPoP(data.totalBills, data.prevStats.totalBills, false)}</div>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">AOV</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(data.aov)}</p>{renderPoP(data.aov, data.prevStats.aov, false)}</div>
+          <div className="flex flex-col mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(data.aov)}</p>{renderPoP(data.aov, data.prevStats.aov, false)}</div>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Discount rate TB</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(data.discountRateTB)}%</p>{renderPoP(data.discountRateTB, data.prevStats.discountRateTB, true)}</div>
+          <div className="flex flex-col mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(data.discountRateTB)}%</p>{renderPoP(data.discountRateTB, data.prevStats.discountRateTB, true)}</div>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Waste Qty</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUS(data.wasteQty)}</p>{renderPoP(data.wasteQty, data.prevStats.wasteQty, true)}</div>
+          <div className="flex flex-col mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUS(data.wasteQty)}</p>{renderPoP(data.wasteQty, data.prevStats.wasteQty, true)}</div>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Waste Ratio</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUS(data.wasteRatio)}%</p>{renderPoP(data.wasteRatio, data.prevStats.wasteRatio, true)}</div>
+          <div className="flex flex-col mt-1"><p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUS(data.wasteRatio)}%</p>{renderPoP(data.wasteRatio, data.prevStats.wasteRatio, true)}</div>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Cancel rate</p>
-          <div className="flex items-baseline mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(data.cancelRate)}%</p>{renderPoP(data.cancelRate, data.prevStats.cancelRate, true)}</div>
+          <div className="flex flex-col mt-1"><p className="text-lg sm:text-2xl font-bold truncate">{formatUS(data.cancelRate)}%</p>{renderPoP(data.cancelRate, data.prevStats.cancelRate, true)}</div>
         </div>
       </div>
 
@@ -276,3 +276,5 @@ export default function OverviewTab({ data, utils }: { data: any, utils: any }) 
     </>
   );
 }
+
+export default memo(OverviewTab);

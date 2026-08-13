@@ -154,7 +154,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const expectedMonth = (d.getMonth() + months) % 12;
       const targetMonth = expectedMonth < 0 ? expectedMonth + 12 : expectedMonth;
       d.setMonth(d.getMonth() + months);
-      // Sửa lỗi ngày 31 tháng trước có thể bị lọt qua tháng sau do JS Date
       if (d.getMonth() !== targetMonth) d.setDate(0);
       return d.getTime();
     };
@@ -164,19 +163,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     
     if (startTime && endTime) {
       if (startTime === endTime) {
-        // So sánh đúng 1 ngày
         prevStartTime = startTime - 86400000;
         prevEndTime = endTime - 86400000;
       } else {
-        // Khoảng thời gian
         const diffDays = Math.round((endTime - startTime) / 86400000);
         let shiftM = 0;
-        
-        if (diffDays <= 31) shiftM = -1;       // Dưới 1 tháng -> So sánh MoM
-        else if (diffDays <= 92) shiftM = -3;  // Khoảng 1 Quý -> So sánh QoQ
-        else if (diffDays <= 184) shiftM = -6; // Nửa năm -> So sánh 6 tháng trước
-        else shiftM = -12;                     // Nhiều hơn -> So sánh YoY
-        
+        if (diffDays <= 31) shiftM = -1;
+        else if (diffDays <= 92) shiftM = -3;
+        else if (diffDays <= 184) shiftM = -6;
+        else shiftM = -12;
         prevStartTime = shiftDate(startTime, shiftM);
         prevEndTime = shiftDate(endTime, shiftM);
       }
@@ -420,13 +415,13 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   }, [baseFilteredData, startDate, endDate, rawData, reviewFilter]);
 
   const renderPoP = (current: number, prev: number, inverseColor: boolean = false) => {
-    if (!prev || prev === 0) return <span className="text-[10px] sm:text-xs text-gray-400 ml-2 font-normal">--</span>; 
+    if (!prev || prev === 0) return <span className="text-[11px] sm:text-xs text-gray-400 font-normal mt-0.5">--</span>; 
     if (current === prev) return null; 
     const changePercent = ((current - prev) / prev) * 100;
     const isPositive = changePercent > 0;
     const colorClass = isPositive ? (inverseColor ? 'text-red-500' : 'text-green-500') : (inverseColor ? 'text-green-500' : 'text-red-500');
     const arrow = isPositive ? '▲' : '▼';
-    return <span className={`text-[10px] sm:text-xs font-semibold ml-2 ${colorClass}`}>{arrow} {Math.abs(changePercent).toFixed(1)}%</span>;
+    return <span className={`text-[11px] sm:text-xs font-semibold mt-0.5 ${colorClass}`}>{arrow} {Math.abs(changePercent).toFixed(1)}%</span>;
   };
 
   if (isLoading) {

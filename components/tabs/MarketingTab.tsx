@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { AreaChart, Area, BarChart, Bar, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-export default function MarketingTab({ data, utils }: { data: any, utils: any }) {
+function MarketingTab({ data, utils }: { data: any, utils: any }) {
   const { formatUS, renderPoP } = utils;
 
   return (
@@ -9,19 +9,19 @@ export default function MarketingTab({ data, utils }: { data: any, utils: any })
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
         <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Promotion Revenue</p>
-          <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-blue-600 truncate" title={formatUS(data.promoRev)}>{formatUS(data.promoRev)}</p>{renderPoP(data.promoRev, data.prevStats.promoRev, false)}</div>
+          <div className="flex flex-col mt-2"><p className="text-xl sm:text-3xl font-bold text-blue-600 truncate" title={formatUS(data.promoRev)}>{formatUS(data.promoRev)}</p>{renderPoP(data.promoRev, data.prevStats.promoRev, false)}</div>
         </div>
         <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Total Discount</p>
-          <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-orange-500 truncate" title={formatUS(data.promoDisc)}>{formatUS(data.promoDisc)}</p>{renderPoP(data.promoDisc, data.prevStats.promoDisc, true)}</div>
+          <div className="flex flex-col mt-2"><p className="text-xl sm:text-3xl font-bold text-orange-500 truncate" title={formatUS(data.promoDisc)}>{formatUS(data.promoDisc)}</p>{renderPoP(data.promoDisc, data.prevStats.promoDisc, true)}</div>
         </div>
         <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Promotion Qty</p>
-          <div className="flex items-baseline mt-2"><p className="text-xl sm:text-3xl font-bold text-gray-800 truncate">{formatUS(data.promoQty)}</p>{renderPoP(data.promoQty, data.prevStats.promoQty, false)}</div>
+          <div className="flex flex-col mt-2"><p className="text-xl sm:text-3xl font-bold text-gray-800 truncate">{formatUS(data.promoQty)}</p>{renderPoP(data.promoQty, data.prevStats.promoQty, false)}</div>
         </div>
         <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium">Promo / Total Revenue (%)</p>
-          <div className="flex items-baseline mt-2">
+          <div className="flex flex-col mt-2">
             <p className="text-xl sm:text-3xl font-bold text-gray-800 truncate">
               {data.revAfterDisc > 0 ? formatUS((data.promoRev / data.revAfterDisc) * 100) : 0}%
             </p>
@@ -85,7 +85,6 @@ export default function MarketingTab({ data, utils }: { data: any, utils: any })
 
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-2">Promotion Details Table</h3>
-        {/* ĐÃ CHỈNH SỬA TẠI ĐÂY: Thay max-h-[500px] thành max-h-none để giãn toàn bộ bảng */}
         <div className="overflow-x-auto max-h-none mt-2 relative">
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="sticky top-0 bg-white z-10 shadow-sm">
@@ -117,3 +116,5 @@ export default function MarketingTab({ data, utils }: { data: any, utils: any })
     </>
   );
 }
+
+export default memo(MarketingTab);

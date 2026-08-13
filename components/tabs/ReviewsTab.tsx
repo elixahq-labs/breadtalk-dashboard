@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Star, AlertCircle } from 'lucide-react';
 
-export default function ReviewsTab({ data, utils, reviewFilter }: { data: any, utils: any, reviewFilter: string }) {
+function ReviewsTab({ data, utils, reviewFilter }: { data: any, utils: any, reviewFilter: string }) {
   const { formatUS, renderPoP } = utils;
 
   return (
@@ -10,39 +10,46 @@ export default function ReviewsTab({ data, utils, reviewFilter }: { data: any, u
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
         <div className={`bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center transition-opacity ${reviewFilter === 'Customer Surveys' ? 'opacity-40' : ''}`}>
           <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Maps Avg Rating</p>
-          <div className="flex items-center justify-center">
-            <span className="text-3xl sm:text-4xl font-black text-gray-800 mr-1">{data.avgMapsRating.toFixed(2)}</span>
-            <Star className="text-yellow-400 fill-yellow-400 w-6 h-6 sm:w-8 sm:h-8" />
-            <div className="mb-1">{renderPoP(data.avgMapsRating, data.prevStats.prevAvgMaps, false)}</div>
+          <div className="flex flex-col items-center justify-center">
+            <div className="flex items-center justify-center">
+              <span className="text-3xl sm:text-4xl font-black text-gray-800 mr-1">{data.avgMapsRating.toFixed(2)}</span>
+              <Star className="text-yellow-400 fill-yellow-400 w-6 h-6 sm:w-8 sm:h-8" />
+            </div>
+            {renderPoP(data.avgMapsRating, data.prevStats.prevAvgMaps, false)}
           </div>
         </div>
         <div className={`bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center transition-opacity ${reviewFilter === 'Google Maps' ? 'opacity-40' : ''}`}>
           <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Survey Avg Rating</p>
-          <div className="flex items-center justify-center">
-            <span className="text-3xl sm:text-4xl font-black text-gray-800 mr-1">{data.avgCusRating.toFixed(2)}</span>
-            <Star className="text-yellow-400 fill-yellow-400 w-6 h-6 sm:w-8 sm:h-8" />
-            <div className="mb-1">{renderPoP(data.avgCusRating, data.prevStats.prevAvgCus, false)}</div>
+          <div className="flex flex-col items-center justify-center">
+            <div className="flex items-center justify-center">
+              <span className="text-3xl sm:text-4xl font-black text-gray-800 mr-1">{data.avgCusRating.toFixed(2)}</span>
+              <Star className="text-yellow-400 fill-yellow-400 w-6 h-6 sm:w-8 sm:h-8" />
+            </div>
+            {renderPoP(data.avgCusRating, data.prevStats.prevAvgCus, false)}
           </div>
         </div>
         <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Total Reviews</p>
-          <div className="flex items-center justify-center">
-            <span className="text-3xl sm:text-4xl font-black text-blue-600">{formatUS(data.totalReviews)}</span>
-            <div className="mb-1">{renderPoP(data.totalReviews, data.prevStats.prevTotalReviews, false)}</div>
+          <div className="flex flex-col items-center justify-center">
+            <div className="flex items-center justify-center">
+              <span className="text-3xl sm:text-4xl font-black text-blue-600">{formatUS(data.totalReviews)}</span>
+            </div>
+            {renderPoP(data.totalReviews, data.prevStats.prevTotalReviews, false)}
           </div>
         </div>
         <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
           <p className="text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wider mb-2">Operational Mistakes</p>
-          <div className="flex items-center justify-center">
-            <span className="text-3xl sm:text-4xl font-black text-red-500 mr-1">{formatUS(data.totalMistakes)}</span>
-            <AlertCircle className="text-red-500 w-6 h-6 sm:w-7 sm:h-7" />
-            <div className="mb-1">{renderPoP(data.totalMistakes, data.prevStats.prevTotalMistakes, true)}</div>
+          <div className="flex flex-col items-center justify-center">
+            <div className="flex items-center justify-center">
+              <span className="text-3xl sm:text-4xl font-black text-red-500 mr-1">{formatUS(data.totalMistakes)}</span>
+              <AlertCircle className="text-red-500 w-6 h-6 sm:w-7 sm:h-7" />
+            </div>
+            {renderPoP(data.totalMistakes, data.prevStats.prevTotalMistakes, true)}
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 items-stretch">
-        {/* MAPS RATING DISTRIBUTION */}
         <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full transition-opacity ${reviewFilter === 'Customer Surveys' ? 'hidden lg:flex opacity-40' : ''}`}>
           <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Maps Rating Dist.</h3>
           <div className="flex-1 flex flex-col items-center justify-center gap-2">
@@ -68,7 +75,6 @@ export default function ReviewsTab({ data, utils, reviewFilter }: { data: any, u
           </div>
         </div>
 
-        {/* SURVEY RATING DISTRIBUTION */}
         <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full transition-opacity ${reviewFilter === 'Google Maps' ? 'hidden lg:flex opacity-40' : ''}`}>
           <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Survey Rating Dist.</h3>
           <div className="flex-1 flex flex-col items-center justify-center gap-2">
@@ -94,7 +100,6 @@ export default function ReviewsTab({ data, utils, reviewFilter }: { data: any, u
           </div>
         </div>
 
-        {/* MISTAKES BY CATEGORY BAR CHART */}
         <div className={`bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full ${(reviewFilter === 'Google Maps' || reviewFilter === 'Customer Surveys') ? 'lg:col-span-2' : ''}`}>
           <h3 className="font-bold mb-4 text-sm sm:text-base shrink-0">Mistakes by Category</h3>
           <div className="flex-1 w-full relative min-h-[250px]">
@@ -113,7 +118,6 @@ export default function ReviewsTab({ data, utils, reviewFilter }: { data: any, u
         </div>
       </div>
 
-      {/* MISTAKES LOG TABLE */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-2 text-red-600">Operational Mistakes Log</h3>
         <div className="overflow-y-auto overflow-x-auto max-h-[350px] mt-2 relative border border-gray-100 rounded-lg">
@@ -145,10 +149,8 @@ export default function ReviewsTab({ data, utils, reviewFilter }: { data: any, u
         </div>
       </div>
 
-      {/* CUSTOMER REVIEWS TABLE */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-2 text-blue-600">Recent Customer Reviews</h3>
-        {/* ĐÃ CHỈNH SỬA TẠI ĐÂY: Thay max-h-[400px] thành max-h-[800px] để kéo dài bảng ra gấp đôi */}
         <div className="overflow-y-auto overflow-x-auto max-h-[800px] mt-2 relative border border-gray-100 rounded-lg">
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="sticky top-0 bg-blue-50 z-10">
@@ -185,3 +187,5 @@ export default function ReviewsTab({ data, utils, reviewFilter }: { data: any, u
     </>
   );
 }
+
+export default memo(ReviewsTab);
