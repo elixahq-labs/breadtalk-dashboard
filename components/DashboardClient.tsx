@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 // IMPORT TABS GIAO DIỆN
 import OverviewTab from './tabs/OverviewTab';
-import InventoryTab from './tabs/InventoryTab'; // <-- Đã đổi tên ở đây
+import InventoryTab from './tabs/InventoryTab';
 import MarketingTab from './tabs/MarketingTab';
 import ReviewsTab from './tabs/ReviewsTab';
 import WorkforceAnalyticsTab from './tabs/WorkforceAnalyticsTab';
@@ -21,9 +21,20 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
   const [storeFilter, setStoreFilter] = useState('All');
   const [groupFilter, setGroupFilter] = useState('All');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [reviewFilter, setReviewFilter] = useState('All');
+
+  // KHỞI TẠO MẶC ĐỊNH NGÀY N-1 (HÔM QUA)
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
 
   useEffect(() => {
     async function loadData() {
@@ -82,7 +93,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     });
   }, [rawData, storeFilter, groupFilter]);
 
-  // BỘ NÃO TÍNH TOÁN DỮ LIỆU
+  // BỘ NÃO TÍNH TOÁN DỮ LIỆU CHÍNH
   const calculatedData = useMemo(() => {
     let curRev = 0, curRevAfterDisc = 0, curCommissions = 0, curVat = 0;
     let totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0, salesQty = 0;
@@ -137,9 +148,40 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const startTime = parseInputDate(startDate) || minTime;
     const endTime = parseInputDate(endDate) || maxTime;
     
-    const diff = endTime - startTime; 
-    const prevEndTime = startTime - 86400000;
-    const prevStartTime = prevEndTime - diff;
+    // THUẬT TOÁN ĐIỀU CHỈNH CHU KỲ (THÁNG, QUÝ, NĂM) THÔNG MINH
+    const shiftDate = (timestamp: number, months: number) => {
+      const d = new Date(timestamp);
+      const expectedMonth = (d.getMonth() + months) % 12;
+      const targetMonth = expectedMonth < 0 ? expectedMonth + 12 : expectedMonth;
+      d.setMonth(d.getMonth() + months);
+      // Sửa lỗi ngày 31 tháng trước có thể bị lọt qua tháng sau do JS Date
+      if (d.getMonth() !== targetMonth) d.setDate(0);
+      return d.getTime();
+    };
+
+    let prevStartTime = 0;
+    let prevEndTime = 0;
+    
+    if (startTime && endTime) {
+      if (startTime === endTime) {
+        // So sánh đúng 1 ngày
+        prevStartTime = startTime - 86400000;
+        prevEndTime = endTime - 86400000;
+      } else {
+        // Khoảng thời gian
+        const diffDays = Math.round((endTime - startTime) / 86400000);
+        let shiftM = 0;
+        
+        if (diffDays <= 31) shiftM = -1;       // Dưới 1 tháng -> So sánh MoM
+        else if (diffDays <= 92) shiftM = -3;  // Khoảng 1 Quý -> So sánh QoQ
+        else if (diffDays <= 184) shiftM = -6; // Nửa năm -> So sánh 6 tháng trước
+        else shiftM = -12;                     // Nhiều hơn -> So sánh YoY
+        
+        prevStartTime = shiftDate(startTime, shiftM);
+        prevEndTime = shiftDate(endTime, shiftM);
+      }
+    }
+
     const openTime = startTime - 86400000;
 
     baseFilteredData.forEach(row => {
@@ -404,7 +446,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
           <h1 className="text-lg md:text-xl font-bold text-gray-900">Operations Dashboard</h1>
           <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto w-full sm:w-auto">
-            {/* THỨ TỰ TABS: Overview | Inventory | Marketing | Reviews & Mistakes | Workforce Analytics | P&L */}
             <button onClick={() => setActiveTab('Overview')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Overview' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Overview</button>
             <button onClick={() => setActiveTab('Inventory')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Inventory' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Inventory</button>
             <button onClick={() => setActiveTab('Marketing')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Marketing' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Marketing</button>
