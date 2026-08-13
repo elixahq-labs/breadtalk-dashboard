@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
-export default function InventoryTab({ data, utils }: { data: any, utils: any }) {
+function InventoryTab({ data, utils }: { data: any, utils: any }) {
   const { formatUS } = utils;
 
   return (
     <>
+      {/* BẢNG PENDING TICKETS */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-4">Operation Reconciliation — Pending Tickets</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
@@ -49,9 +50,10 @@ export default function InventoryTab({ data, utils }: { data: any, utils: any })
         </div>
       </div>
 
+      {/* BẢNG INVENTORY GAP */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
         <h3 className="font-bold text-base sm:text-lg mb-2">Inventory GAP Table (GAP ≠ 0)</h3>
-        <div className="overflow-y-auto overflow-x-auto max-h-[500px] mt-2 relative">
+        <div className="overflow-y-auto overflow-x-auto max-h-[1000px] mt-2 relative">
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="sticky top-0 bg-white z-10 shadow-sm">
               <tr className="text-gray-500 border-b border-gray-200">
@@ -74,3 +76,6 @@ export default function InventoryTab({ data, utils }: { data: any, utils: any })
     </>
   );
 }
+
+// Bọc Component bằng React.memo để chống giật lag khi render bảng lớn
+export default memo(InventoryTab);
