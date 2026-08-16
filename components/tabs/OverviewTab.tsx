@@ -281,33 +281,34 @@ function OverviewTab({ data, utils }: { data: any; utils: any }) {
               </ResponsiveContainer>
             </div>
             <div className="w-full md:w-1/2 flex flex-col justify-center gap-2">
-              {data.paymentData.map((p: any, i: number) => (
-                <div key={i} className="flex flex-col w-full border-b border-slate-50 pb-2 last:border-0">
-                  <div className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm">
-                    <div className="flex items-center flex-1 min-w-0 pr-2">
-                      <span
-                        className="w-3 h-3 rounded-full mr-2 shrink-0"
-                        style={{ backgroundColor: p.color }}
-                      ></span>
-                      <span
-                        className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden"
-                        title={p.name}
-                      >
-                        {p.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-bold text-[#2b3674] text-right">
-                        {formatUS(p.value)}
-                      </span>
-                      <span className="text-slate-400 font-medium">
-                        ({p.percent.toFixed(1)}%)
-                      </span>
-                      {renderPoP(p.value, p.prevValue, false)}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                {data.paymentData.map((p: any, i: number) => (
+  <div key={i} className="flex flex-col w-full border-b border-slate-50 pb-2 last:border-0">
+    <div className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm">
+      <div className="flex items-center flex-1 min-w-0 pr-2">
+        <span
+          className="w-3 h-3 rounded-full mr-2 shrink-0"
+          style={{ backgroundColor: p.color }}
+        ></span>
+        <span
+          className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden"
+          title={p.name}
+        >
+          {p.name}
+        </span>
+        {/* Thêm % ngay sau tên */}
+        <span className="text-slate-400 font-medium ml-1 shrink-0">
+          ({p.percent.toFixed(1)}%)
+        </span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="font-bold text-[#2b3674] text-right">
+          {formatUS(p.value)}
+        </span>
+        {renderPoP(p.value, p.prevValue, false)}
+      </div>
+    </div>
+  </div>
+))}
             </div>
           </div>
         </div>
@@ -592,32 +593,33 @@ function OverviewTab({ data, utils }: { data: any; utils: any }) {
             </div>
             <div className="w-full md:w-1/2 flex flex-col justify-center gap-2">
               {data.wasteByGroupData.map((p: any, i: number) => (
-                <div key={i} className="flex flex-col w-full border-b border-slate-50 pb-2 last:border-0">
-                  <div className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm">
-                    <div className="flex items-center flex-1 min-w-0 pr-2">
-                      <span
-                        className="w-3 h-3 rounded-full mr-2 shrink-0"
-                        style={{ backgroundColor: p.color }}
-                      ></span>
-                      <span
-                        className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden"
-                        title={p.name}
-                      >
-                        {p.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-bold text-[#2b3674] text-right">
-                        {formatUS(p.value)}
-                      </span>
-                      <span className="text-slate-400 font-medium">
-                        ({data.wasteQty > 0 ? ((p.value / data.wasteQty) * 100).toFixed(1) : 0}%)
-                      </span>
-                      {renderPoP(p.value, p.prevValue, true)}
-                    </div>
-                  </div>
-                </div>
-              ))}
+  <div key={i} className="flex flex-col w-full border-b border-slate-50 pb-2 last:border-0">
+    <div className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm">
+      <div className="flex items-center flex-1 min-w-0 pr-2">
+        <span
+          className="w-3 h-3 rounded-full mr-2 shrink-0"
+          style={{ backgroundColor: p.color }}
+        ></span>
+        <span
+          className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden"
+          title={p.name}
+        >
+          {p.name}
+        </span>
+        {/* Thêm % ngay sau tên */}
+        <span className="text-slate-400 font-medium ml-1 shrink-0">
+          ({data.wasteQty > 0 ? ((p.value / data.wasteQty) * 100).toFixed(1) : 0}%)
+        </span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="font-bold text-[#2b3674] text-right">
+          {formatUS(p.value)}
+        </span>
+        {renderPoP(p.value, p.prevValue, true)}
+      </div>
+    </div>
+  </div>
+))}
             </div>
           </div>
         </div>
