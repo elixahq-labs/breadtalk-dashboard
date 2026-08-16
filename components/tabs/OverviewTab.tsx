@@ -112,6 +112,8 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                   <YAxis width={45} axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#a3aed1'}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
                   <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f8fafc'}} />
                   <Area type="monotone" dataKey="revenue" stroke="#4318FF" strokeWidth={3} fillOpacity={0.1} fill="#4318FF" name="Revenue" />
+                  {/* CẬP NHẬT: Thêm đường Target cho Revenue */}
+                  <Line type="monotone" dataKey="target" stroke="#F15A2B" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Target Revenue" />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -271,7 +273,7 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
         </div>
       </div>
 
-      {/* TOP TABLES SẢN PHẨM CẬP NHẬT QTY (N-1) */}
+      {/* TOP TABLES SẢN PHẨM CÓ CỘT QTY (n-1) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100">
           <h3 className="font-bold mb-6 text-sm sm:text-base text-[#2b3674]">Top 5 Best-Selling Products (By Group)</h3>

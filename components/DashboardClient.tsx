@@ -117,7 +117,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     
     const salesMapByGroup: Record<string, Record<string, any>> = {};
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
-    
     const promoMap: Record<string, { name: string, qty: number, sales: number, discount: number, gross: number, storeMap: Record<string, any> }> = {}; 
 
     const wasteByStoreMap: Record<string, { name: string, actual: number, target: number }> = {};
@@ -212,7 +211,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       if (isPrevPeriod) {
         if (tType === 'Sales') { 
           prevRev += salesVal; prevRevAfterDisc += gross; prevTotalDiscount += disc; prevVat += rowVat; prevSalesQty += qty; 
-          // CẬP NHẬT: Ghi nhận Qty (n-1) cho Best-Selling Products
           if (sku) {
             if (!salesMapByGroup[groupName]) salesMapByGroup[groupName] = {};
             if (!salesMapByGroup[groupName][sku]) salesMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
@@ -224,7 +222,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         if (tType === 'Cancel') prevCancelBills += qty;
         if (tType === 'Waste') { 
           prevWaste += qty; 
-          // CẬP NHẬT: Ghi nhận Qty (n-1) cho Waste Products
           if (sku) {
             if (!wasteMapByGroup[groupName]) wasteMapByGroup[groupName] = {};
             if (!wasteMapByGroup[groupName][sku]) wasteMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
@@ -300,7 +297,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         
         if (tType === 'Commissions') curCommissions += salesVal;
         if (tType === 'Count-Bills') { countBills += qty; trendMap[day].countBill += qty; }
-        if (tType === 'Target' && tInfo.toLowerCase() !== 'waste') trendMap[day].target += salesVal;
         if (tType === 'Payment') paymentMap[tInfo || 'Others'] = (paymentMap[tInfo || 'Others'] || 0) + salesVal;
 
         if (tType === 'Cancel') { 
@@ -325,9 +321,14 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           }
         }
 
-        if (tType === 'Target' && tInfo.toLowerCase() === 'waste') {
-          if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
-          wasteByStoreMap[storeCode].target += qty;
+        // CẬP NHẬT: Chia rõ 2 loại Target: Sales và Waste
+        if (tType === 'Target') {
+          if (tInfo === 'Sales') {
+            trendMap[day].target += salesVal; // Target của Revenue
+          } else if (tInfo.toLowerCase() === 'waste') {
+            if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
+            wasteByStoreMap[storeCode].target += qty; // Target của Waste
+          }
         }
 
         if (tType === 'Promotion') {
@@ -382,7 +383,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const pColors = ['#4318FF', '#F15A2B', '#00B574', '#FFB703', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
     
-    // CẬP NHẬT: Filter để chỉ hiện top 5 các sản phẩm CÓ BÁN/HỦY TRONG KỲ HIỆN TẠI
     const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ 
       group, 
       items: Object.values(salesMapByGroup[group]).filter((i:any) => i.qty > 0).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) 
