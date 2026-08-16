@@ -600,7 +600,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           ))}
         </div>
 
-        <div className="hidden md:flex items-center">
+        <div className="flex items-center">
           <span className="text-[10px] text-slate-400 italic">Project by Arthur</span>
         </div>
       </div>
