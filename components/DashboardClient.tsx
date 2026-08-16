@@ -205,7 +205,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const tType = clean(row['Ticket-Type']);
       const tInfo = clean(row['Type-Info']);
       const dateStr = clean(row['Date']);
-      const monthStr = clean(row['Month']); 
       const rowTime = parseDataDate(dateStr);
       
       const qty = parseNum(row['Qty']);
@@ -220,39 +219,12 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const isPrevPeriod = rowTime && rowTime >= prevStartTime && rowTime <= prevEndTime;
       const isDateEmpty = !rowTime; 
 
-      if (tType === 'Target') {
+      // CẬP NHẬT: TARGET TRỰC TIẾP TỪNG NGÀY THEO DATABASE MỚI (Cho cả Sales và Waste)
+      if (tType === 'Target' && isCurrentPeriod) {
           if (tInfo.toLowerCase() === 'waste') {
-              if (isDateEmpty && monthStr) {
-                  const monthsMapping: any = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
-                  const p = monthStr.split('.');
-                  if (p.length === 2) {
-                      const mIdx = monthsMapping[p[0]];
-                      let y = parseInt(p[1], 10);
-                      if (y < 100) y += 2000;
-                      
-                      const targetMonthStart = new Date(y, mIdx, 1).getTime();
-                      const targetMonthEnd = new Date(y, mIdx + 1, 0).getTime();
-                      
-                      const overlapStart = Math.max(startTime, targetMonthStart);
-                      const overlapEnd = Math.min(endTime, targetMonthEnd);
-                      
-                      if (overlapStart <= overlapEnd) {
-                          const overlapDays = Math.round((overlapEnd - overlapStart) / 86400000) + 1;
-                          const allocatedWasteTarget = qty * overlapDays;
-                          
-                          if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
-                          wasteByStoreMap[storeCode].target += allocatedWasteTarget;
-                      }
-                  }
-              } else if (isDateEmpty && !monthStr) {
-                  if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
-                  wasteByStoreMap[storeCode].target += qty * diffDaysTotal;
-              } else if (isCurrentPeriod) {
-                  if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
-                  wasteByStoreMap[storeCode].target += qty;
-              }
-          }
-          else if (tInfo === 'Sales' && isCurrentPeriod) {
+              if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
+              wasteByStoreMap[storeCode].target += qty;
+          } else if (tInfo === 'Sales') {
               const dayStr = dateStr.split('-')[0] || 'N/A';
               if (trendMap[dayStr]) {
                   trendMap[dayStr].target += salesVal;
@@ -555,8 +527,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     };
   }, [baseFilteredData, startDate, endDate, rawData, reviewFilter]);
 
-  const renderPoP = (current: number, prev: number, inverseColor: boolean = false, isDarkBg: boolean = false) => {
-    if (!prev || prev === 0) return <span className={`text-[11px] sm:text-xs font-normal mt-1 ${isDarkBg ? 'text-blue-200' : 'text-slate-400'}`}>--</span>; 
+  // CẬP NHẬT: Thêm tham số extraClass để điều chỉnh linh hoạt giao diện PoP
+  const renderPoP = (current: number, prev: number, inverseColor: boolean = false, isDarkBg: boolean = false, extraClass: string = 'mt-1') => {
+    if (!prev || prev === 0) return <span className={`text-[11px] sm:text-xs font-normal ${extraClass} ${isDarkBg ? 'text-blue-200' : 'text-slate-400'}`}>--</span>; 
     const changePercent = ((current - prev) / prev) * 100;
     const isPositive = changePercent > 0;
     const isZero = changePercent === 0;
@@ -578,7 +551,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const arrow = isZero ? '-' : (isPositive ? '↑' : '↓');
     
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-wide mt-1 w-max ${bgClass} ${textClass}`}>
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-wide w-max ${bgClass} ${textClass} ${extraClass}`}>
         {arrow} {isZero ? '0' : Math.abs(changePercent).toFixed(1)}% <span className="ml-1 font-medium opacity-70 hidden xl:inline">vs prev</span>
       </span>
     );

@@ -37,7 +37,7 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-6 mb-8">
         
-        {/* HIGHLIGHTED CARD THEO UI MỚI */}
+        {/* HIGHLIGHTED CARD */}
         <div className="bg-[#2b3674] p-4 sm:p-6 rounded-3xl shadow-lg flex flex-col justify-between relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
           <div className="relative z-10">
@@ -49,7 +49,6 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
           </div>
         </div>
 
-        {/* CÁC CARD CÒN LẠI DÙNG UI SÁNG */}
         <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
           <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Revenue after disc.</p>
           <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-[#2b3674] whitespace-nowrap tracking-tighter">{formatUS(data.revAfterDisc)}</p>{renderPoP(data.revAfterDisc, data.prevStats.revAfterDisc, false)}</div>
@@ -72,7 +71,6 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
           <p className="text-[9px] text-slate-400 mt-1 italic">*Excl. OPEX & COGS</p>
         </div>
 
-        {/* HÀNG CARD THỨ 2 */}
         <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
           <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Total Bills</p>
           <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-[#2b3674] whitespace-nowrap tracking-tighter">{formatUS(data.totalBills)}</p>{renderPoP(data.totalBills, data.prevStats.totalBills, false)}</div>
@@ -138,12 +136,10 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                     <div className="flex items-center flex-1 min-w-0 pr-2">
                       <span className="w-3 h-3 rounded-full mr-2 shrink-0" style={{ backgroundColor: p.color }}></span>
                       <span className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden" title={p.name}>{p.name}</span>
-                      {/* Bổ sung % tỷ trọng bên cạnh tên */}
                       <span className="text-slate-400 font-normal ml-1">({p.percent.toFixed(1)}%)</span>
                     </div>
                     <span className="font-bold text-[#2b3674] shrink-0 text-right">{formatUS(p.value)}</span>
                   </div>
-                  {/* CẬP NHẬT: Thêm PoP Indicator phía dưới */}
                   <div className="flex justify-end mt-0.5">
                     {renderPoP(p.value, p.prevValue, false)}
                   </div>
@@ -167,7 +163,6 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                   <YAxis width={35} axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#a3aed1'}} tickFormatter={(val) => formatUS(val)} />
                   <Tooltip formatter={(value: any) => `${formatUS(value)}%`} cursor={{fill: '#f8fafc'}} />
                   <Area type="monotone" dataKey="discount" stroke="#FFB703" strokeWidth={3} fillOpacity={0.1} fill="#FFB703" name="Discount Rate" />
-                  {/* CẬP NHẬT: Thêm đường nét đứt của Discount chu kỳ trước */}
                   <Line type="monotone" dataKey="prevDiscount" stroke="#94a3b8" strokeWidth={2} strokeDasharray="3 3" dot={false} name="Prev Discount" />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -185,7 +180,6 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                   <YAxis width={40} axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#a3aed1'}} tickFormatter={(val) => formatUS(val)} />
                   <Tooltip formatter={(value: any) => formatUS(value)} />
                   <Line type="monotone" dataKey="waste" stroke="#ef4444" strokeWidth={3} dot={{r:3, fill: '#ef4444'}} name="Waste Qty" />
-                  {/* CẬP NHẬT: Thêm đường nét đứt của Waste chu kỳ trước */}
                   <Line type="monotone" dataKey="prevWaste" stroke="#94a3b8" strokeWidth={2} strokeDasharray="3 3" dot={false} name="Prev Waste" />
                 </LineChart>
               </ResponsiveContainer>
@@ -246,7 +240,6 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                     <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f8fafc'}} />
                     <Bar dataKey="actual" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={20} name="Actual Waste" />
                     <Line type="monotone" dataKey="target" stroke="#F15A2B" strokeWidth={3} dot={{r: 4}} name="Waste Target" />
-                    <Line type="monotone" dataKey="avgWaste" stroke="#4318FF" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Average Waste" />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -278,7 +271,6 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                     </div>
                     <span className="font-bold text-[#2b3674] shrink-0 text-right">{formatUS(p.value)}</span>
                   </div>
-                  {/* CẬP NHẬT: Thêm PoP Indicator (True color vì waste tăng là xấu) */}
                   <div className="flex justify-end mt-0.5">
                     {renderPoP(p.value, p.prevValue, true)}
                   </div>
