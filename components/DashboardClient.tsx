@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
-import { Loader2 } from 'lucide-react';
+import { Loader2, PieChart as ChartIcon } from 'lucide-react';
 
 // IMPORT TABS GIAO DIỆN
 import OverviewTab from './tabs/OverviewTab';
@@ -149,11 +149,13 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const startTime = parseInputDate(startDate) || minTime;
     const endTime = parseInputDate(endDate) || maxTime;
     
+    // THUẬT TOÁN ĐIỀU CHỈNH CHU KỲ (THÁNG, QUÝ, NĂM) THÔNG MINH
     const shiftDate = (timestamp: number, months: number) => {
       const d = new Date(timestamp);
       const expectedMonth = (d.getMonth() + months) % 12;
       const targetMonth = expectedMonth < 0 ? expectedMonth + 12 : expectedMonth;
       d.setMonth(d.getMonth() + months);
+      // Sửa lỗi ngày 31 tháng trước có thể bị lọt qua tháng sau do JS Date
       if (d.getMonth() !== targetMonth) d.setDate(0);
       return d.getTime();
     };
@@ -163,15 +165,19 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     
     if (startTime && endTime) {
       if (startTime === endTime) {
+        // So sánh đúng 1 ngày
         prevStartTime = startTime - 86400000;
         prevEndTime = endTime - 86400000;
       } else {
+        // Khoảng thời gian
         const diffDays = Math.round((endTime - startTime) / 86400000);
         let shiftM = 0;
-        if (diffDays <= 31) shiftM = -1;
-        else if (diffDays <= 92) shiftM = -3;
-        else if (diffDays <= 184) shiftM = -6;
-        else shiftM = -12;
+        
+        if (diffDays <= 31) shiftM = -1;       // Dưới 1 tháng -> So sánh MoM
+        else if (diffDays <= 92) shiftM = -3;  // Khoảng 1 Quý -> So sánh QoQ
+        else if (diffDays <= 184) shiftM = -6; // Nửa năm -> So sánh 6 tháng trước
+        else shiftM = -12;                     // Nhiều hơn -> So sánh YoY
+        
         prevStartTime = shiftDate(startTime, shiftM);
         prevEndTime = shiftDate(endTime, shiftM);
       }
@@ -227,8 +233,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       if (sku) {
         const key = `${groupName}_${sku}`;
         if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open:0, process:0, import:0, export:0, sales:0, waste:0, stock:0, gap:0 };
+        
         if (tType === 'Stock' && rowTime === openTime) gapMap[key].open += qty;
         if (tType === 'Stock' && rowTime === endTime) gapMap[key].stock += qty;
+        
         if (isCurrentPeriod) {
           if (tType === 'Process') gapMap[key].process += qty;
           if (tType === 'Import') gapMap[key].import += qty;
@@ -299,7 +307,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           
           if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
           wasteByStoreMap[storeCode].actual += qty;
-          
+
           wasteGroupMap[groupName] = (wasteGroupMap[groupName] || 0) + qty;
 
           if (sku) {
@@ -309,6 +317,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           }
         }
 
+        // Lấy số liệu Target Waste
         if (tType === 'Target' && tInfo.toLowerCase() === 'waste') {
           if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
           wasteByStoreMap[storeCode].target += qty;
@@ -349,7 +358,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const pWasteRatio = (prevSalesQty + prevWaste) > 0 ? (prevWaste / (prevSalesQty + prevWaste)) * 100 : 0;
 
     const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
-    const pColors = ['#2563eb', '#f97316', '#10b981', '#fbbf24', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
+    const pColors = ['#4318FF', '#F15A2B', '#00B574', '#FFB703', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
     const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ group, items: Object.values(salesMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
     const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ group, items: Object.values(wasteMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
@@ -427,74 +436,115 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     };
   }, [baseFilteredData, startDate, endDate, rawData, reviewFilter]);
 
-  const renderPoP = (current: number, prev: number, inverseColor: boolean = false) => {
-    if (!prev || prev === 0) return <span className="text-[11px] sm:text-xs text-gray-400 font-normal mt-0.5">--</span>; 
-    if (current === prev) return null; 
+  // CẬP NHẬT RENDER POP ĐỂ GIỐNG VỚI GIAO DIỆN MẪU (PILL BADGE)
+  const renderPoP = (current: number, prev: number, inverseColor: boolean = false, isDarkBg: boolean = false) => {
+    if (!prev || prev === 0) return <span className={`text-[11px] sm:text-xs font-normal mt-1 ${isDarkBg ? 'text-blue-200' : 'text-slate-400'}`}>--</span>; 
     const changePercent = ((current - prev) / prev) * 100;
     const isPositive = changePercent > 0;
-    const colorClass = isPositive ? (inverseColor ? 'text-red-500' : 'text-green-500') : (inverseColor ? 'text-green-500' : 'text-red-500');
-    const arrow = isPositive ? '▲' : '▼';
-    return <span className={`text-[11px] sm:text-xs font-semibold mt-0.5 ${colorClass}`}>{arrow} {Math.abs(changePercent).toFixed(1)}%</span>;
+    
+    // Logic màu sắc giống UI tham khảo
+    let bgClass = "";
+    let textClass = "";
+
+    if (isDarkBg) {
+      bgClass = isPositive ? (inverseColor ? 'bg-red-400/20' : 'bg-[#00d084]/20') : (inverseColor ? 'bg-[#00d084]/20' : 'bg-red-400/20');
+      textClass = isPositive ? (inverseColor ? 'text-red-300' : 'text-[#00d084]') : (inverseColor ? 'text-[#00d084]' : 'text-red-300');
+    } else {
+      bgClass = isPositive ? (inverseColor ? 'bg-red-50' : 'bg-emerald-50') : (inverseColor ? 'bg-emerald-50' : 'bg-red-50');
+      textClass = isPositive ? (inverseColor ? 'text-red-600' : 'text-emerald-600') : (inverseColor ? 'text-emerald-600' : 'text-red-600');
+    }
+
+    const arrow = isPositive ? '↑' : '↓';
+    
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-wide mt-1 w-max ${bgClass} ${textClass}`}>
+        {arrow} {Math.abs(changePercent).toFixed(1)}% <span className="ml-1 font-medium opacity-70 hidden xl:inline">vs prev</span>
+      </span>
+    );
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-500 mb-4" />
-        <p className="font-medium text-lg">Loading operations data...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f4f7fe] text-[#4318FF]">
+        <Loader2 className="w-10 h-10 animate-spin mb-4" />
+        <p className="font-bold text-lg text-[#2b3674]">Loading analytics...</p>
       </div>
     );
   }
 
+  // CẬP NHẬT BG VÀ NAVBAR THEO GIAO DIỆN
   return (
-    <div className="p-3 sm:p-6 bg-[#f8f9fa] min-h-screen font-sans text-gray-800">
+    <div className="p-3 sm:p-6 bg-[#f4f7fe] min-h-screen font-sans text-slate-800">
       
-      {/* HEADER & GLOBAL SLICERS */}
-      <div className="mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-50">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-          <h1 className="text-lg md:text-xl font-bold text-gray-900">Operations Dashboard</h1>
-          <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto w-full sm:w-auto">
-            <button onClick={() => setActiveTab('Overview')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Overview' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Overview</button>
-            <button onClick={() => setActiveTab('Inventory')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Inventory' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Inventory</button>
-            <button onClick={() => setActiveTab('Marketing')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Marketing' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Marketing</button>
-            <button onClick={() => setActiveTab('Reviews')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'Reviews' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Reviews & Mistakes</button>
-            <button onClick={() => setActiveTab('HR')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'HR' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Workforce Analytics</button>
-            <button onClick={() => setActiveTab('PnL')} className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${activeTab === 'PnL' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>P&L</button>
-          </div>
+      {/* HEADER NAVBAR MỚI */}
+      <div className="mb-6 bg-white px-6 py-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+        
+        <div className="flex items-center gap-2 w-full md:w-auto justify-center md:justify-start">
+          <ChartIcon className="w-6 h-6 text-[#4318FF]" />
+          <h1 className="text-xl font-bold text-[#2b3674] tracking-tight">Operations</h1>
         </div>
 
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full">
-          <select value={storeFilter} onChange={e => setStoreFilter(e.target.value)} className="border border-gray-300 rounded-md p-2 text-sm bg-white cursor-pointer hover:border-blue-500 w-full md:w-auto">
-            <option value="All">-- All Stores --</option>
+        {/* PILL NAVIGATION MỚI */}
+        <div className="flex bg-slate-50 p-1.5 rounded-full overflow-x-auto w-full md:w-auto shadow-inner no-scrollbar">
+          {['Overview', 'Inventory', 'Marketing', 'Reviews', 'HR', 'PnL'].map((tab) => (
+            <button 
+              key={tab}
+              onClick={() => setActiveTab(tab)} 
+              className={`px-5 py-2 text-sm font-semibold rounded-full transition-all whitespace-nowrap ${
+                activeTab === tab 
+                  ? 'bg-[#4318FF] text-white shadow-md' 
+                  : 'text-slate-500 hover:text-[#2b3674] hover:bg-slate-100'
+              }`}>
+              {tab === 'HR' ? 'Workforce Analytics' : tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="hidden md:flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-slate-200 border-2 border-white shadow-sm flex items-center justify-center text-sm font-bold text-slate-600">AD</div>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-[#2b3674] leading-tight">Admin User</span>
+              <span className="text-[10px] text-slate-500">Store Manager</span>
+            </div>
+        </div>
+
+      </div>
+
+      {/* TITLE & SLICERS SECTION MỚI */}
+      <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
+        <div className="w-full md:w-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#2b3674]">{activeTab} Dashboard</h2>
+          <p className="text-sm text-slate-500 mt-1">Your current operations summary and activity</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+          <select value={storeFilter} onChange={e => setStoreFilter(e.target.value)} className="bg-white border border-slate-200 text-slate-600 rounded-full px-4 py-2 text-sm font-medium shadow-sm hover:border-blue-300 outline-none cursor-pointer">
+            <option value="All">All Stores</option>
             {stores.map((s: any) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <div className="flex flex-row items-center justify-between space-x-2 border border-gray-300 rounded-md bg-white p-1 w-full md:w-auto overflow-hidden">
-            <span className="text-sm text-gray-500 pl-2 hidden sm:inline">From:</span>
-            <input type="date" value={startDate} max={endDate || undefined} onChange={e => setStartDate(e.target.value)} className="p-1 text-sm outline-none bg-transparent text-gray-700 cursor-pointer w-full"/>
-            <span className="text-sm text-gray-400">→</span>
-            <span className="text-sm text-gray-500 hidden sm:inline">To:</span>
-            <input type="date" value={endDate} min={startDate || undefined} onChange={e => setEndDate(e.target.value)} className="p-1 text-sm outline-none bg-transparent text-gray-700 cursor-pointer w-full pr-2"/>
+          
+          <div className="flex flex-row items-center bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-sm text-sm font-medium">
+            <input type="date" value={startDate} max={endDate || undefined} onChange={e => setStartDate(e.target.value)} className="outline-none bg-transparent text-slate-600 cursor-pointer"/>
+            <span className="text-slate-400 mx-2">-</span>
+            <input type="date" value={endDate} min={startDate || undefined} onChange={e => setEndDate(e.target.value)} className="outline-none bg-transparent text-slate-600 cursor-pointer"/>
           </div>
-          <select value={groupFilter} onChange={e => setGroupFilter(e.target.value)} className="border border-gray-300 rounded-md p-2 text-sm bg-white cursor-pointer hover:border-blue-500 w-full md:w-auto">
-            <option value="All">-- All Groups --</option>
+
+          <select value={groupFilter} onChange={e => setGroupFilter(e.target.value)} className="bg-white border border-slate-200 text-slate-600 rounded-full px-4 py-2 text-sm font-medium shadow-sm hover:border-blue-300 outline-none cursor-pointer">
+            <option value="All">All Groups</option>
             {groups.map((g: any) => <option key={g} value={g}>{g}</option>)}
           </select>
           
           {activeTab === 'Reviews' && (
-            <select value={reviewFilter} onChange={e => setReviewFilter(e.target.value)} className="border border-blue-300 rounded-md p-2 text-sm bg-blue-50 text-blue-800 cursor-pointer hover:border-blue-500 w-full md:w-auto font-medium">
-              <option value="All">-- All Review Sources --</option>
-              <option value="Google Maps">Google Maps</option>
-              <option value="Customer Surveys">Customer Surveys</option>
+            <select value={reviewFilter} onChange={e => setReviewFilter(e.target.value)} className="bg-[#4318FF] border border-[#4318FF] text-white rounded-full px-4 py-2 text-sm font-medium shadow-md hover:bg-blue-800 outline-none cursor-pointer">
+              <option value="All">All Reviews</option>
+              <option value="Google Maps">Maps Only</option>
+              <option value="Customer Surveys">Surveys Only</option>
             </select>
           )}
-
-          <div className="md:ml-auto flex items-center justify-center text-sm text-gray-500 font-medium bg-gray-50 px-3 py-2 rounded-md w-full md:w-auto">
-            Filtering: {formatUS(calculatedData.filteredCount)} records
-          </div>
         </div>
       </div>
 
-      {/* RENDER CÁC TAB TƯƠNG ỨNG */}
+      {/* RENDER TABS */}
       {activeTab === 'Overview' && <OverviewTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
       {activeTab === 'Inventory' && <InventoryTab data={calculatedData} utils={{ formatUS }} />}
       {activeTab === 'Marketing' && <MarketingTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
