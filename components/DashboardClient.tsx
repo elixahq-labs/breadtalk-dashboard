@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
-import { Loader2 } from 'lucide-react'; // Đã xóa ChartIcon theo yêu cầu
+import { Loader2 } from 'lucide-react';
 
 // IMPORT TABS GIAO DIỆN
 import OverviewTab from './tabs/OverviewTab';
@@ -117,6 +117,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     
     const salesMapByGroup: Record<string, Record<string, any>> = {};
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
+    
     const promoMap: Record<string, { name: string, qty: number, sales: number, discount: number, gross: number, storeMap: Record<string, any> }> = {}; 
 
     const wasteByStoreMap: Record<string, { name: string, actual: number, target: number }> = {};
@@ -482,7 +483,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   return (
     <div className="p-3 sm:p-6 bg-[#f4f7fe] min-h-screen font-sans text-slate-800">
       
-      {/* THAY ĐỔI: Header Mới */}
       <div className="mb-6 bg-white px-6 py-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
         
         <div className="flex items-center gap-2 w-full md:w-auto justify-center md:justify-start">
@@ -504,11 +504,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           ))}
         </div>
 
-        <div className="hidden md:flex items-center gap-3">
-            <div className="flex flex-col text-right">
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider">Project by</span>
-              <span className="text-sm font-bold text-[#2b3674] leading-tight">Arthur</span>
-            </div>
+        {/* ĐÃ CHỈNH SỬA TẠI ĐÂY: Hiển thị Project by Arthur 1 dòng, không in đậm, chữ nhỏ */}
+        <div className="hidden md:flex items-center">
+          <span className="text-[10px] text-slate-400 italic">Project by Arthur</span>
         </div>
 
       </div>
