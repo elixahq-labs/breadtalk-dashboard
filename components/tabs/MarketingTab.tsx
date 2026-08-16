@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 function MarketingTab({ data, utils }: { data: any, utils: any }) {
   const { formatUS, renderPoP } = utils;
   
+  // Quản lý trạng thái đóng/mở của các dòng Promotion
   const [expandedPromos, setExpandedPromos] = useState<Record<string, boolean>>({});
 
   const togglePromo = (name: string) => {
@@ -13,35 +14,24 @@ function MarketingTab({ data, utils }: { data: any, utils: any }) {
 
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6">
-        <div className="bg-[#2b3674] p-4 sm:p-6 rounded-3xl shadow-lg flex flex-col justify-center relative overflow-hidden">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
+        <div className="bg-[#2b3674] p-5 sm:p-6 rounded-3xl shadow-lg flex flex-col justify-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
-          <div className="relative z-10">
-            <p className="text-[11px] sm:text-sm text-blue-200 font-semibold mb-1 sm:mb-2">Promotion Revenue</p>
-            <div className="flex flex-col">
-              <p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-white whitespace-nowrap tracking-tighter">{formatUS(data.promoRev)}</p>
-              {renderPoP(data.promoRev, data.prevStats.promoRev, false, true)}
-            </div>
-          </div>
+          <p className="text-xs sm:text-sm text-blue-200 font-semibold">Promotion Revenue</p>
+          <div className="flex flex-col mt-2"><p className="text-lg sm:text-3xl font-bold text-white break-words leading-tight">{formatUS(data.promoRev)}</p>{renderPoP(data.promoRev, data.prevStats.promoRev, false, true)}</div>
         </div>
-        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center">
-          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Total Discount</p>
-          <div className="flex flex-col">
-            <p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-orange-500 whitespace-nowrap tracking-tighter">{formatUS(data.promoDisc)}</p>
-            {renderPoP(data.promoDisc, data.prevStats.promoDisc, true)}
-          </div>
+        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center">
+          <p className="text-xs sm:text-sm text-slate-500 font-semibold">Total Discount</p>
+          <div className="flex flex-col mt-2"><p className="text-lg sm:text-3xl font-bold text-orange-500 break-words leading-tight">{formatUS(data.promoDisc)}</p>{renderPoP(data.promoDisc, data.prevStats.promoDisc, true)}</div>
         </div>
-        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center">
-          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Promotion Qty</p>
-          <div className="flex flex-col">
-            <p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-slate-800 whitespace-nowrap tracking-tighter">{formatUS(data.promoQty)}</p>
-            {renderPoP(data.promoQty, data.prevStats.promoQty, false)}
-          </div>
+        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center">
+          <p className="text-xs sm:text-sm text-slate-500 font-semibold">Promotion Qty</p>
+          <div className="flex flex-col mt-2"><p className="text-lg sm:text-3xl font-bold text-slate-800 break-words leading-tight">{formatUS(data.promoQty)}</p>{renderPoP(data.promoQty, data.prevStats.promoQty, false)}</div>
         </div>
-        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center">
-          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Promo / Total Revenue</p>
-          <div className="flex flex-col">
-            <p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-[#4318FF] whitespace-nowrap tracking-tighter">
+        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center">
+          <p className="text-xs sm:text-sm text-slate-500 font-semibold">Promo / Total Revenue (%)</p>
+          <div className="flex flex-col mt-2">
+            <p className="text-lg sm:text-3xl font-bold text-[#4318FF] break-words leading-tight">
               {data.revAfterDisc > 0 ? formatUS((data.promoRev / data.revAfterDisc) * 100) : 0}%
             </p>
           </div>
@@ -122,6 +112,7 @@ function MarketingTab({ data, utils }: { data: any, utils: any }) {
                 
                 return (
                   <React.Fragment key={idx}>
+                    {/* DÒNG TỔNG CỦA PROMOTION */}
                     <tr 
                       onClick={() => { if (hasStores) togglePromo(row.name); }}
                       className={`border-b border-slate-100 text-slate-700 transition-colors ${hasStores ? 'hover:bg-slate-50 cursor-pointer' : ''}`}
@@ -141,6 +132,7 @@ function MarketingTab({ data, utils }: { data: any, utils: any }) {
                       <td className="py-4 px-3 text-right font-black text-sm sm:text-base text-[#4318FF]">{formatUS(row.gross)}</td>
                     </tr>
 
+                    {/* DÒNG CHI TIẾT TỪNG CỬA HÀNG (Hiển thị khi được bấm mở ra) */}
                     {isExpanded && hasStores && (
                       <tr className="bg-slate-50/50">
                         <td colSpan={5} className="p-0 border-b border-slate-200">

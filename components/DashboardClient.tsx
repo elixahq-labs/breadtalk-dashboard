@@ -29,7 +29,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     d.setDate(d.getDate() - 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
-  
+
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
@@ -59,18 +59,18 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   const clean = (val: any) => (val || '').toString().trim();
   const parseNum = (val: any) => parseFloat(clean(val).replace(/,/g, '')) || 0;
   const formatUS = (val: any) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseNum(val));
-  
+
   const parseDataDate = (dateStr: string) => {
     const cleaned = clean(dateStr);
     if (!cleaned) return null;
-    const months: any = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+    const months: any = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
     const parts = cleaned.split('-');
     if (parts.length !== 3) return null;
     let y = parseInt(parts[2], 10);
     if (y < 100) y += 2000;
     return new Date(y, months[parts[1]], parseInt(parts[0], 10)).getTime();
   };
-  
+
   const parseInputDate = (dateStr: string) => {
     if (!dateStr) return null;
     const [y, m, d] = dateStr.split('-');
@@ -97,7 +97,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   const calculatedData = useMemo(() => {
     let curRev = 0, curRevAfterDisc = 0, curCommissions = 0, curVat = 0;
     let totalDiscount = 0, countBills = 0, cancelBills = 0, waste = 0, salesQty = 0;
-    
+
     let prevRev = 0, prevRevAfterDisc = 0, prevCommissions = 0, prevVat = 0;
     let prevTotalDiscount = 0, prevCountBills = 0, prevCancelBills = 0, prevWaste = 0, prevSalesQty = 0;
 
@@ -106,24 +106,26 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
     const trendMap: Record<string, any> = {};
     const paymentMap: Record<string, number> = {};
-    const prevPaymentMap: Record<string, number> = {};
-    
     const gapMap: Record<string, any> = {};
     const ticketAgg: Record<string, any> = {};
     const pStats = { buying: 0, process: 0, import: 0, missingWaste: 0, missingStock: 0 };
-    
+
+    // ===== THÊM CÁC MAP SO SÁNH KỲ TRƯỚC =====
+    const prevPaymentMap: Record<string, number> = {};
+    const prevWasteGroupMap: Record<string, number> = {};
+    const prevTrendMap: Record<string, any> = {};
+
     const wasteTrackMap: Record<string, Record<string, boolean>> = {};
     const stockTrackMap: Record<string, Record<string, boolean>> = {};
     const activeDates = new Set<string>();
     const activeStores = new Set<string>();
-    
+
     const salesMapByGroup: Record<string, Record<string, any>> = {};
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
-    const promoMap: Record<string, { name: string, qty: number, sales: number, discount: number, gross: number, storeMap: Record<string, any> }> = {}; 
+    const promoMap: Record<string, { name: string, qty: number, sales: number, discount: number, gross: number, storeMap: Record<string, any> }> = {};
 
     const wasteByStoreMap: Record<string, { name: string, actual: number, target: number }> = {};
     const wasteGroupMap: Record<string, number> = {};
-    const prevWasteGroupMap: Record<string, number> = {};
     const cancelReasonMap: Record<string, number> = {};
 
     let mapsSumRating = 0, mapsCountRating = 0;
@@ -138,19 +140,18 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const mapsRatingCountMap: Record<string, number> = { '5 Stars': 0, '4 Stars': 0, '3 Stars': 0, '2 Stars': 0, '1 Star': 0 };
     const cusRatingCountMap: Record<string, number> = { '5 Stars': 0, '4 Stars': 0, '3 Stars': 0, '2 Stars': 0, '1 Star': 0 };
     const mistakeCatMap: Record<string, number> = {};
-    
+
     let fCount = 0;
-    const today = new Date('2026-08-12').getTime(); 
+    const today = new Date('2026-08-12').getTime();
 
     let minTime = Infinity, maxTime = -Infinity;
     rawData.forEach(r => {
-        const t = parseDataDate(r['Date']);
-        if (t) { if (t < minTime) minTime = t; if (t > maxTime) maxTime = t; }
+      const t = parseDataDate(r['Date']);
+      if (t) { if (t < minTime) minTime = t; if (t > maxTime) maxTime = t; }
     });
-    
+
     const startTime = parseInputDate(startDate) || minTime;
     const endTime = parseInputDate(endDate) || maxTime;
-    const diffDaysTotal = Math.max(1, Math.round((endTime - startTime) / 86400000) + 1);
 
     const shiftDate = (timestamp: number, months: number) => {
       const d = new Date(timestamp);
@@ -163,16 +164,17 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
     let prevStartTime = 0;
     let prevEndTime = 0;
-    
+
     if (startTime && endTime) {
       if (startTime === endTime) {
         prevStartTime = startTime - 86400000;
         prevEndTime = endTime - 86400000;
       } else {
+        const diffDays = Math.round((endTime - startTime) / 86400000);
         let shiftM = 0;
-        if (diffDaysTotal <= 31) shiftM = -1;
-        else if (diffDaysTotal <= 92) shiftM = -3;
-        else if (diffDaysTotal <= 184) shiftM = -6;
+        if (diffDays <= 31) shiftM = -1;
+        else if (diffDays <= 92) shiftM = -3;
+        else if (diffDays <= 184) shiftM = -6;
         else shiftM = -12;
         prevStartTime = shiftDate(startTime, shiftM);
         prevEndTime = shiftDate(endTime, shiftM);
@@ -181,24 +183,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
     const openTime = startTime - 86400000;
 
-    for (let i = 0; i < diffDaysTotal; i++) {
-        const d = new Date(startTime + i * 86400000);
-        const dayStr = String(d.getDate()).padStart(2, '0');
-        if (!trendMap[dayStr]) {
-            trendMap[dayStr] = { 
-                day: dayStr, 
-                revenue: 0, prevRevenue: 0,
-                target: 0, 
-                discountAmt: 0, prevDiscountAmt: 0,
-                waste: 0, prevWaste: 0,
-                cancel: 0, promoRevenue: 0 
-            };
-        }
-    }
-
     baseFilteredData.forEach(row => {
       const store = clean(row['Store-Name']);
-      const storeCode = clean(row['Store-Code']) || store; 
+      const storeCode = clean(row['Store-Code']) || store;
       const groupName = clean(row['Group']) || 'Others';
       const sku = clean(row['SKU']);
       const name = clean(row['Product-Name']);
@@ -206,91 +193,83 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const tInfo = clean(row['Type-Info']);
       const dateStr = clean(row['Date']);
       const rowTime = parseDataDate(dateStr);
-      
+
       const qty = parseNum(row['Qty']);
       const gross = parseNum(row['Gross-Sales']);
       const disc = parseNum(row['Discount']);
       const salesVal = parseNum(row['Sales']);
       const rowVat = parseNum(row['VAT']);
+
       const sourceMistake = clean(row['Source-Mistake']);
       const mistakeDetails = clean(row['Mistake-Details']);
 
       const isCurrentPeriod = rowTime && rowTime >= startTime && rowTime <= endTime;
       const isPrevPeriod = rowTime && rowTime >= prevStartTime && rowTime <= prevEndTime;
-      const isDateEmpty = !rowTime; 
-
-      // CẬP NHẬT: TARGET TRỰC TIẾP TỪNG NGÀY THEO DATABASE MỚI (Cho cả Sales và Waste)
-      if (tType === 'Target' && isCurrentPeriod) {
-          if (tInfo.toLowerCase() === 'waste') {
-              if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
-              wasteByStoreMap[storeCode].target += qty;
-          } else if (tInfo === 'Sales') {
-              const dayStr = dateStr.split('-')[0] || 'N/A';
-              if (trendMap[dayStr]) {
-                  trendMap[dayStr].target += salesVal;
-              }
-          }
-      }
+      const isDateEmpty = !rowTime;
 
       const isMapsReview = sourceMistake.includes('Maps') || tType === 'Maps-Reviews';
-      const passReviewFilter = reviewFilter === 'All' || (reviewFilter === 'Google Maps' && isMapsReview) || (reviewFilter === 'Customer Surveys' && !isMapsReview);
+      const passReviewFilter = reviewFilter === 'All'
+        || (reviewFilter === 'Google Maps' && isMapsReview)
+        || (reviewFilter === 'Customer Surveys' && !isMapsReview);
 
       if (isPrevPeriod) {
-        if (tType === 'Sales') { 
-          prevRev += salesVal; prevRevAfterDisc += gross; prevTotalDiscount += disc; prevVat += rowVat; prevSalesQty += qty; 
+        // ===== CẬP NHẬT MAP KỲ TRƯỚC =====
+        const dayPrev = dateStr.split('-')[0] || 'N/A';
+        if (!prevTrendMap[dayPrev]) {
+          prevTrendMap[dayPrev] = {
+            day: dayPrev,
+            revenue: 0,
+            discountAmt: 0,
+            waste: 0,
+          };
+        }
+
+        if (tType === 'Sales') {
+          prevRev += salesVal; prevRevAfterDisc += gross; prevTotalDiscount += disc; prevVat += rowVat; prevSalesQty += qty;
+
+          // Thêm vào trend so sánh
+          prevTrendMap[dayPrev].revenue += gross;
+          prevTrendMap[dayPrev].discountAmt += disc;
+
           if (sku) {
             if (!salesMapByGroup[groupName]) salesMapByGroup[groupName] = {};
             if (!salesMapByGroup[groupName][sku]) salesMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
             salesMapByGroup[groupName][sku].prevQty += qty;
           }
-          const pDayIdx = Math.round((rowTime - prevStartTime) / 86400000);
-          const matchedCurrentDate = new Date(startTime + (pDayIdx * 86400000));
-          if (matchedCurrentDate.getTime() <= endTime) {
-              const dStr = String(matchedCurrentDate.getDate()).padStart(2, '0');
-              if (trendMap[dStr]) {
-                  trendMap[dStr].prevRevenue += gross;
-                  trendMap[dStr].prevDiscountAmt += disc;
-              }
-          }
         }
+
         if (tType === 'Commissions') prevCommissions += salesVal;
         if (tType === 'Count-Bills') prevCountBills += qty;
         if (tType === 'Cancel') prevCancelBills += qty;
         if (tType === 'Payment') {
-            const pMethod = tInfo || 'Others';
-            prevPaymentMap[pMethod] = (prevPaymentMap[pMethod] || 0) + salesVal;
+          prevPaymentMap[tInfo || 'Others'] = (prevPaymentMap[tInfo || 'Others'] || 0) + salesVal;
         }
-        if (tType === 'Waste') { 
-          prevWaste += qty; 
+        if (tType === 'Waste') {
+          prevWaste += qty;
+          prevTrendMap[dayPrev].waste += qty;
           prevWasteGroupMap[groupName] = (prevWasteGroupMap[groupName] || 0) + qty;
-          
+
           if (sku) {
             if (!wasteMapByGroup[groupName]) wasteMapByGroup[groupName] = {};
             if (!wasteMapByGroup[groupName][sku]) wasteMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
             wasteMapByGroup[groupName][sku].prevQty += qty;
           }
-
-          const pDayIdx = Math.round((rowTime - prevStartTime) / 86400000);
-          const matchedCurrentDate = new Date(startTime + (pDayIdx * 86400000));
-          if (matchedCurrentDate.getTime() <= endTime) {
-              const dStr = String(matchedCurrentDate.getDate()).padStart(2, '0');
-              if (trendMap[dStr]) {
-                  trendMap[dStr].prevWaste += qty;
-              }
-          }
         }
+
         if (tType === 'Promotion') { prevMktPromoRev += gross; prevMktPromoDisc += disc; prevMktPromoQty += qty; }
+
         if (tType === 'Cus-Reviews' || tType === 'Reviews') {
           if (passReviewFilter && qty > 0 && qty <= 5) {
-             if (isMapsReview) { prevMapsSumRating += qty; prevMapsCountRating++; } else { prevCusSumRating += qty; prevCusCountRating++; }
+            if (isMapsReview) { prevMapsSumRating += qty; prevMapsCountRating++; } else { prevCusSumRating += qty; prevCusCountRating++; }
           }
         }
+
         if (tType === 'Mistake') prevCountMistakes += qty;
       }
 
       if (sku) {
         const key = `${groupName}_${sku}`;
-        if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open:0, process:0, import:0, export:0, sales:0, waste:0, stock:0, gap:0 };
+        if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open: 0, process: 0, import: 0, export: 0, sales: 0, waste: 0, stock: 0, gap: 0 };
         if (tType === 'Stock' && rowTime === openTime) gapMap[key].open += qty;
         if (tType === 'Stock' && rowTime === endTime) gapMap[key].stock += qty;
         if (isCurrentPeriod) {
@@ -303,18 +282,17 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       }
 
       if (isCurrentPeriod || isDateEmpty) {
-        
         if (tType === 'Cus-Reviews' || tType === 'Reviews') {
           if (passReviewFilter) {
             if (qty > 0 && qty <= 5) {
-               const rounded = Math.round(qty);
-               if (isMapsReview) {
-                 mapsSumRating += qty; mapsCountRating++;
-                 if (rounded === 5) mapsRatingCountMap['5 Stars']++; else if (rounded === 4) mapsRatingCountMap['4 Stars']++; else if (rounded === 3) mapsRatingCountMap['3 Stars']++; else if (rounded === 2) mapsRatingCountMap['2 Stars']++; else if (rounded === 1) mapsRatingCountMap['1 Star']++;
-               } else {
-                 cusSumRating += qty; cusCountRating++;
-                 if (rounded === 5) cusRatingCountMap['5 Stars']++; else if (rounded === 4) cusRatingCountMap['4 Stars']++; else if (rounded === 3) cusRatingCountMap['3 Stars']++; else if (rounded === 2) cusRatingCountMap['2 Stars']++; else if (rounded === 1) cusRatingCountMap['1 Star']++;
-               }
+              const rounded = Math.round(qty);
+              if (isMapsReview) {
+                mapsSumRating += qty; mapsCountRating++;
+                if (rounded === 5) mapsRatingCountMap['5 Stars']++; else if (rounded === 4) mapsRatingCountMap['4 Stars']++; else if (rounded === 3) mapsRatingCountMap['3 Stars']++; else if (rounded === 2) mapsRatingCountMap['2 Stars']++; else if (rounded === 1) mapsRatingCountMap['1 Star']++;
+              } else {
+                cusSumRating += qty; cusCountRating++;
+                if (rounded === 5) cusRatingCountMap['5 Stars']++; else if (rounded === 4) cusRatingCountMap['4 Stars']++; else if (rounded === 3) cusRatingCountMap['3 Stars']++; else if (rounded === 2) cusRatingCountMap['2 Stars']++; else if (rounded === 1) cusRatingCountMap['1 Star']++;
+              }
             }
             if (tType === 'Reviews' && mistakeDetails) rList.push({ date: dateStr || 'N/A', store: store, rating: qty, source: sourceMistake, text: mistakeDetails });
           }
@@ -326,88 +304,96 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           mistakeCatMap[catName] = (mistakeCatMap[catName] || 0) + qty;
           mList.push({ date: dateStr || 'N/A', store: store, category: catName, source: sourceMistake, details: mistakeDetails, qty: qty });
         }
+      }
 
-        if (!isCurrentPeriod) return; 
+      if (!isCurrentPeriod) return;
 
-        fCount++;
-        if (dateStr) activeDates.add(dateStr);
-        activeStores.add(store);
+      fCount++;
+      activeDates.add(dateStr);
+      activeStores.add(store);
 
-        const day = dateStr ? (dateStr.split('-')[0] || 'N/A') : 'N/A';
-        if (!trendMap[day]) trendMap[day] = { day, revenue: 0, prevRevenue: 0, target: 0, discountAmt: 0, prevDiscountAmt: 0, waste: 0, prevWaste: 0, countBill: 0, cancel: 0, promoRevenue: 0 };
+      const day = dateStr.split('-')[0] || 'N/A';
+      if (!trendMap[day]) trendMap[day] = { day, revenue: 0, target: 0, discountAmt: 0, waste: 0, countBill: 0, cancel: 0, promoRevenue: 0 };
 
-        if (tType === 'Sales') {
-          curRev += salesVal; curRevAfterDisc += gross; curVat += rowVat; totalDiscount += disc; salesQty += qty;
-          trendMap[day].revenue += gross; trendMap[day].discountAmt += disc;
-          if (sku) {
-            if (!salesMapByGroup[groupName]) salesMapByGroup[groupName] = {};
-            if (!salesMapByGroup[groupName][sku]) salesMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
-            salesMapByGroup[groupName][sku].qty += qty;
-          }
+      if (tType === 'Sales') {
+        curRev += salesVal; curRevAfterDisc += gross; curVat += rowVat; totalDiscount += disc; salesQty += qty;
+        trendMap[day].revenue += gross; trendMap[day].discountAmt += disc;
+        if (sku) {
+          if (!salesMapByGroup[groupName]) salesMapByGroup[groupName] = {};
+          if (!salesMapByGroup[groupName][sku]) salesMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
+          salesMapByGroup[groupName][sku].qty += qty;
         }
-        
-        if (tType === 'Commissions') curCommissions += salesVal;
-        if (tType === 'Count-Bills') { countBills += qty; trendMap[day].countBill += qty; }
-        if (tType === 'Payment') paymentMap[tInfo || 'Others'] = (paymentMap[tInfo || 'Others'] || 0) + salesVal;
+      }
 
-        if (tType === 'Cancel') { 
-          cancelBills += qty; 
-          trendMap[day].cancel += qty; 
-          const cReason = tInfo || 'Others';
-          cancelReasonMap[cReason] = (cancelReasonMap[cReason] || 0) + qty;
+      if (tType === 'Commissions') curCommissions += salesVal;
+      if (tType === 'Count-Bills') { countBills += qty; trendMap[day].countBill += qty; }
+      if (tType === 'Payment') paymentMap[tInfo || 'Others'] = (paymentMap[tInfo || 'Others'] || 0) + salesVal;
+
+      if (tType === 'Cancel') {
+        cancelBills += qty;
+        trendMap[day].cancel += qty;
+        const cReason = tInfo || 'Others';
+        cancelReasonMap[cReason] = (cancelReasonMap[cReason] || 0) + qty;
+      }
+
+      if (tType === 'Waste') {
+        waste += qty; trendMap[day].waste += qty;
+        if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
+        wasteByStoreMap[storeCode].actual += qty;
+        wasteGroupMap[groupName] = (wasteGroupMap[groupName] || 0) + qty;
+
+        if (sku) {
+          if (!wasteMapByGroup[groupName]) wasteMapByGroup[groupName] = {};
+          if (!wasteMapByGroup[groupName][sku]) wasteMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
+          wasteMapByGroup[groupName][sku].qty += qty;
         }
+      }
 
-        if (tType === 'Waste') {
-          waste += qty; trendMap[day].waste += qty;
-          
+      // CẬP NHẬT: Chia rõ 2 loại Target: Sales và Waste
+      if (tType === 'Target') {
+        if (tInfo === 'Sales') {
+          trendMap[day].target += salesVal;
+        } else if (tInfo.toLowerCase() === 'waste') {
           if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
-          wasteByStoreMap[storeCode].actual += qty;
-          
-          wasteGroupMap[groupName] = (wasteGroupMap[groupName] || 0) + qty;
-
-          if (sku) {
-            if (!wasteMapByGroup[groupName]) wasteMapByGroup[groupName] = {};
-            if (!wasteMapByGroup[groupName][sku]) wasteMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
-            wasteMapByGroup[groupName][sku].qty += qty;
-          }
+          wasteByStoreMap[storeCode].target += qty;
         }
+      }
 
-        if (tType === 'Promotion') {
-          const pName = tInfo || 'Others';
-          mktPromoRev += gross; mktPromoDisc += disc; mktPromoQty += qty;
-          trendMap[day].promoRevenue += gross;
-          
-          if (!promoMap[pName]) {
-            promoMap[pName] = { name: pName, qty: 0, sales: 0, discount: 0, gross: 0, storeMap: {} };
-          }
-          promoMap[pName].qty += qty; 
-          promoMap[pName].sales += salesVal; 
-          promoMap[pName].discount += disc; 
-          promoMap[pName].gross += gross;
-          
-          if (!promoMap[pName].storeMap[store]) {
-            promoMap[pName].storeMap[store] = { name: store, qty: 0, sales: 0, discount: 0, gross: 0 };
-          }
-          promoMap[pName].storeMap[store].qty += qty;
-          promoMap[pName].storeMap[store].sales += salesVal;
-          promoMap[pName].storeMap[store].discount += disc;
-          promoMap[pName].storeMap[store].gross += gross;
+      if (tType === 'Promotion') {
+        const pName = tInfo || 'Others';
+        mktPromoRev += gross; mktPromoDisc += disc; mktPromoQty += qty;
+        trendMap[day].promoRevenue += gross;
+
+        if (!promoMap[pName]) {
+          promoMap[pName] = { name: pName, qty: 0, sales: 0, discount: 0, gross: 0, storeMap: {} };
         }
+        promoMap[pName].qty += qty;
+        promoMap[pName].sales += salesVal;
+        promoMap[pName].discount += disc;
+        promoMap[pName].gross += gross;
 
-        if (tType === 'Ticket') { 
-          if (tInfo === 'Waste-Ticket' && qty > 0) { if (!wasteTrackMap[store]) wasteTrackMap[store] = {}; wasteTrackMap[store][dateStr] = true; }
-          if (tInfo === 'Stock-Ticket' && qty > 0) { if (!stockTrackMap[store]) stockTrackMap[store] = {}; stockTrackMap[store][dateStr] = true; }
-          if (['Buying-Ticket', 'Process-Ticket', 'Import-Ticket'].includes(tInfo)) {
-            if (tInfo === 'Buying-Ticket') pStats.buying += qty;
-            if (tInfo === 'Process-Ticket') pStats.process += qty;
-            if (tInfo === 'Import-Ticket') pStats.import += qty;
-            const tKey = `${dateStr}_${store}_${tInfo}`;
-            if (!ticketAgg[tKey]) {
-              const agingDays = Math.floor((today - rowTime) / 86400000);
-              ticketAgg[tKey] = { date: dateStr, store, type: tInfo, qty: 0, aging: agingDays > 0 ? agingDays : 0 };
-            }
-            ticketAgg[tKey].qty += qty;
+        if (!promoMap[pName].storeMap[store]) {
+          promoMap[pName].storeMap[store] = { name: store, qty: 0, sales: 0, discount: 0, gross: 0 };
+        }
+        promoMap[pName].storeMap[store].qty += qty;
+        promoMap[pName].storeMap[store].sales += salesVal;
+        promoMap[pName].storeMap[store].discount += disc;
+        promoMap[pName].storeMap[store].gross += gross;
+      }
+
+      if (tType === 'Ticket') {
+        if (tInfo === 'Waste-Ticket' && qty > 0) { if (!wasteTrackMap[store]) wasteTrackMap[store] = {}; wasteTrackMap[store][dateStr] = true; }
+        if (tInfo === 'Stock-Ticket' && qty > 0) { if (!stockTrackMap[store]) stockTrackMap[store] = {}; stockTrackMap[store][dateStr] = true; }
+        if (['Buying-Ticket', 'Process-Ticket', 'Import-Ticket'].includes(tInfo)) {
+          if (tInfo === 'Buying-Ticket') pStats.buying += qty;
+          if (tInfo === 'Process-Ticket') pStats.process += qty;
+          if (tInfo === 'Import-Ticket') pStats.import += qty;
+          const tKey = `${dateStr}_${store}_${tInfo}`;
+          if (!ticketAgg[tKey]) {
+            const agingDays = Math.floor((today - rowTime) / 86400000);
+            ticketAgg[tKey] = { date: dateStr, store, type: tInfo, qty: 0, aging: agingDays > 0 ? agingDays : 0 };
           }
+          ticketAgg[tKey].qty += qty;
         }
       }
     });
@@ -420,50 +406,63 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const prevNetRevenue = prevRevAfterDisc - prevCommissions - prevVat - prevRoyalty;
     const pWasteRatio = (prevSalesQty + prevWaste) > 0 ? (prevWaste / (prevSalesQty + prevWaste)) * 100 : 0;
 
-    const tData = Object.values(trendMap).map(d => ({ 
-      ...d, 
-      discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0,
-      prevDiscount: d.prevRevenue > 0 ? (d.prevDiscountAmt / d.prevRevenue) * 100 : 0
-    })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
-    
+    const tData = Object.values(trendMap).map(d => {
+      const prevDay = prevTrendMap[d.day];
+      return {
+        ...d,
+        discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0,
+        prevDiscount: prevDay && prevDay.revenue > 0 ? (prevDay.discountAmt / prevDay.revenue) * 100 : 0,
+        prevWaste: prevDay ? prevDay.waste : 0,
+      };
+    }).sort((a, b) => parseInt(a.day) - parseInt(b.day));
+
     const pColors = ['#4318FF', '#F15A2B', '#00B574', '#FFB703', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
-    const totalPayment = Object.values(paymentMap).reduce((sum, val) => sum + val, 0);
-    const pData = Object.keys(paymentMap).map(k => ({ 
-      name: k, 
-      value: paymentMap[k],
-      prevValue: prevPaymentMap[k] || 0,
-      percent: totalPayment > 0 ? (paymentMap[k] / totalPayment) * 100 : 0
-    })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
-    
-    const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ 
-      group, 
-      items: Object.values(salesMapByGroup[group]).filter((i:any) => i.qty > 0).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) 
+
+    const totalPaymentValue = Object.values(paymentMap).reduce((sum: number, v: number) => sum + v, 0);
+    const pData = Object.keys(paymentMap)
+      .map(k => ({
+        name: k,
+        value: paymentMap[k],
+        percent: totalPaymentValue > 0 ? (paymentMap[k] / totalPaymentValue) * 100 : 0,
+        prevValue: prevPaymentMap[k] || 0,
+      }))
+      .sort((a, b) => b.value - a.value)
+      .map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
+
+    const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({
+      group,
+      items: Object.values(salesMapByGroup[group]).filter((i: any) => i.qty > 0).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5)
     })).filter(g => g.items.length > 0);
-    
-    const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ 
-      group, 
-      items: Object.values(wasteMapByGroup[group]).filter((i:any) => i.qty > 0).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) 
+
+    const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({
+      group,
+      items: Object.values(wasteMapByGroup[group]).filter((i: any) => i.qty > 0).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5)
     })).filter(g => g.items.length > 0);
-    
-    const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Others').sort((a, b) => a.group.localeCompare(b.group)); 
+
+    const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Others').sort((a, b) => a.group.localeCompare(b.group));
 
     const cReasonData = Object.keys(cancelReasonMap).map(k => ({ name: k, qty: cancelReasonMap[k] })).sort((a, b) => b.qty - a.qty);
+
+    const diffDaysTotal = Math.max(1, Math.round((endTime - startTime) / 86400000) + 1);
 
     const wStoreData = Object.values(wasteByStoreMap).map(s => ({
       ...s,
       avgWaste: s.actual / diffDaysTotal
     })).sort((a, b) => b.actual - a.actual);
-    
+
     const wColors = ['#ef4444', '#f97316', '#f59e0b', '#fbbf24', '#eab308', '#84cc16', '#22c55e', '#0ea5e9', '#3b82f6', '#8b5cf6', '#d946ef'];
-    const wGroupData = Object.keys(wasteGroupMap).map((k, i) => ({ 
-      name: k, 
-      value: wasteGroupMap[k], 
-      prevValue: prevWasteGroupMap[k] || 0,
-      color: wColors[i % wColors.length] 
-    })).sort((a, b) => b.value - a.value);
+    const wGroupData = Object.keys(wasteGroupMap)
+      .map((k, i) => ({
+        name: k,
+        value: wasteGroupMap[k],
+        color: wColors[i % wColors.length],
+        prevValue: prevWasteGroupMap[k] || 0,
+      }))
+      .sort((a, b) => b.value - a.value);
 
     const allTickets = Object.values(ticketAgg).filter(t => t.qty > 0);
     const missingTicketsList: any[] = [];
+
     activeStores.forEach(st => {
       activeDates.forEach(dt => {
         const tDate = parseDataDate(dt) || today;
@@ -498,7 +497,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const aMapsRating = mapsCountRating > 0 ? mapsSumRating / mapsCountRating : 0;
     const aCusRating = cusCountRating > 0 ? cusSumRating / cusCountRating : 0;
     const tReviews = mapsCountRating + cusCountRating;
-    
+
     const rColors = ['#10b981', '#84cc16', '#fbbf24', '#f97316', '#ef4444'];
     const mDistData = Object.keys(mapsRatingCountMap).map((k, i) => ({ name: k, value: mapsRatingCountMap[k], color: rColors[i] })).filter(x => x.value > 0);
     const cDistData = Object.keys(cusRatingCountMap).map((k, i) => ({ name: k, value: cusRatingCountMap[k], color: rColors[i] })).filter(x => x.value > 0);
@@ -507,7 +506,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const prevStatsResult = {
       revenue: prevRev, revAfterDisc: prevRevAfterDisc, commissions: prevCommissions, vatValue: prevVat, royalty: prevRoyalty, trueNetRevenue: prevNetRevenue,
       totalBills: prevCountBills, aov: prevCountBills > 0 ? prevRevAfterDisc / prevCountBills : 0, discountRateTB: prevRevAfterDisc > 0 ? (prevTotalDiscount / prevRevAfterDisc) * 100 : 0,
-      wasteQty: prevWaste, wasteRatio: pWasteRatio, cancelRate: prevCountBills > 0 ? (prevCancelBills / prevCountBills) * 100 : 0, 
+      wasteQty: prevWaste, wasteRatio: pWasteRatio, cancelRate: prevCountBills > 0 ? (prevCancelBills / prevCountBills) * 100 : 0,
       promoRev: prevMktPromoRev, promoDisc: prevMktPromoDisc, promoQty: prevMktPromoQty,
       prevAvgMaps: prevMapsCountRating > 0 ? prevMapsSumRating / prevMapsCountRating : 0, prevAvgCus: prevCusCountRating > 0 ? prevCusSumRating / prevCusCountRating : 0,
       prevTotalReviews: prevMapsCountRating + prevCusCountRating, prevTotalMistakes: prevCountMistakes
@@ -517,30 +516,25 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       revenue: curRev, revAfterDisc: curRevAfterDisc, commissions: curCommissions, vatValue: curVat, royalty: curRoyalty, trueNetRevenue: curNetRevenue,
       totalBills: countBills, aov: countBills > 0 ? curRevAfterDisc / countBills : 0, discountRateTB: curRevAfterDisc > 0 ? (totalDiscount / curRevAfterDisc) * 100 : 0,
       wasteQty: waste, wasteRatio: curWasteRatio, cancelRate: countBills > 0 ? (cancelBills / countBills) * 100 : 0,
-      trendData: tData, paymentData: pData, topSalesByGroup: tSalesGroup, topWasteByGroup: tWasteGroup, 
+      trendData: tData, paymentData: pData, topSalesByGroup: tSalesGroup, topWasteByGroup: tWasteGroup,
       wasteByStoreData: wStoreData, wasteByGroupData: wGroupData, cancelReasonData: cReasonData,
       agingTickets: finalAgingTickets, pendingStats: pStats, gapData: gData, filteredCount: fCount,
       promoRev: mktPromoRev, promoDisc: mktPromoDisc, promoQty: mktPromoQty, promoList: mktPromoList, topPromoByQty: mktTopByQty, topPromoByRev: mktTopByRev,
       avgMapsRating: aMapsRating, avgCusRating: aCusRating, totalReviews: tReviews, reviewList: rList, mapsDistData: mDistData, cusDistData: cDistData,
       totalMistakes: countMistakes, mistakeList: mList, mistakeCatDist: mCatDistData,
-      prevStats: prevStatsResult 
+      prevStats: prevStatsResult
     };
   }, [baseFilteredData, startDate, endDate, rawData, reviewFilter]);
 
-  // CẬP NHẬT: Thêm tham số extraClass để điều chỉnh linh hoạt giao diện PoP
-  const renderPoP = (current: number, prev: number, inverseColor: boolean = false, isDarkBg: boolean = false, extraClass: string = 'mt-1') => {
-    if (!prev || prev === 0) return <span className={`text-[11px] sm:text-xs font-normal ${extraClass} ${isDarkBg ? 'text-blue-200' : 'text-slate-400'}`}>--</span>; 
+  const renderPoP = (current: number, prev: number, inverseColor: boolean = false, isDarkBg: boolean = false) => {
+    if (!prev || prev === 0) return <span className={`text-[11px] sm:text-xs font-normal mt-1 ${isDarkBg ? 'text-blue-200' : 'text-slate-400'}`}>--</span>;
     const changePercent = ((current - prev) / prev) * 100;
     const isPositive = changePercent > 0;
-    const isZero = changePercent === 0;
-    
+
     let bgClass = "";
     let textClass = "";
 
-    if (isZero) {
-        bgClass = isDarkBg ? 'bg-slate-400/20' : 'bg-slate-100';
-        textClass = isDarkBg ? 'text-slate-300' : 'text-slate-500';
-    } else if (isDarkBg) {
+    if (isDarkBg) {
       bgClass = isPositive ? (inverseColor ? 'bg-red-400/20' : 'bg-[#00d084]/20') : (inverseColor ? 'bg-[#00d084]/20' : 'bg-red-400/20');
       textClass = isPositive ? (inverseColor ? 'text-red-300' : 'text-[#00d084]') : (inverseColor ? 'text-[#00d084]' : 'text-red-300');
     } else {
@@ -548,11 +542,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       textClass = isPositive ? (inverseColor ? 'text-red-600' : 'text-emerald-600') : (inverseColor ? 'text-emerald-600' : 'text-red-600');
     }
 
-    const arrow = isZero ? '-' : (isPositive ? '↑' : '↓');
-    
+    const arrow = isPositive ? '↑' : '↓';
+
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-wide w-max ${bgClass} ${textClass} ${extraClass}`}>
-        {arrow} {isZero ? '0' : Math.abs(changePercent).toFixed(1)}% <span className="ml-1 font-medium opacity-70 hidden xl:inline">vs prev</span>
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-wide mt-1 w-max ${bgClass} ${textClass}`}>
+        {arrow} {Math.abs(changePercent).toFixed(1)}% <span className="ml-1 font-medium opacity-70 hidden xl:inline">vs prev</span>
       </span>
     );
   };
@@ -568,23 +562,22 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
   return (
     <div className="p-3 sm:p-6 bg-[#f4f7fe] min-h-screen font-sans text-slate-800">
-      
       <div className="mb-6 bg-white px-6 py-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
-        
         <div className="flex items-center gap-2 w-full md:w-auto justify-center md:justify-start">
           <h1 className="text-xl font-bold text-[#2b3674] tracking-tight">BreadTalk VietNam</h1>
         </div>
 
         <div className="flex bg-slate-50 p-1.5 rounded-full overflow-x-auto w-full md:w-auto shadow-inner no-scrollbar">
           {['Overview', 'Inventory', 'Marketing', 'Reviews', 'HR', 'PnL'].map((tab) => (
-            <button 
+            <button
               key={tab}
-              onClick={() => setActiveTab(tab)} 
+              onClick={() => setActiveTab(tab)}
               className={`px-5 py-2 text-sm font-semibold rounded-full transition-all whitespace-nowrap ${
-                activeTab === tab 
-                  ? 'bg-[#4318FF] text-white shadow-md' 
+                activeTab === tab
+                  ? 'bg-[#4318FF] text-white shadow-md'
                   : 'text-slate-500 hover:text-[#2b3674] hover:bg-slate-100'
-              }`}>
+              }`}
+            >
               {tab === 'HR' ? 'Workforce Analytics' : tab}
             </button>
           ))}
@@ -593,7 +586,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         <div className="hidden md:flex items-center">
           <span className="text-[10px] text-slate-400 italic">Project by Arthur</span>
         </div>
-
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
@@ -607,7 +599,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             <option value="All">All Stores</option>
             {stores.map((s: any) => <option key={s} value={s}>{s}</option>)}
           </select>
-          
+
           <div className="flex flex-row items-center bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-sm text-sm font-medium">
             <input type="date" value={startDate} max={endDate || undefined} onChange={e => setStartDate(e.target.value)} className="outline-none bg-transparent text-slate-600 cursor-pointer"/>
             <span className="text-slate-400 mx-2">-</span>
@@ -618,7 +610,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             <option value="All">All Groups</option>
             {groups.map((g: any) => <option key={g} value={g}>{g}</option>)}
           </select>
-          
+
           {activeTab === 'Reviews' && (
             <select value={reviewFilter} onChange={e => setReviewFilter(e.target.value)} className="bg-[#4318FF] border border-[#4318FF] text-white rounded-full px-4 py-2 text-sm font-medium shadow-md hover:bg-blue-800 outline-none cursor-pointer">
               <option value="All">All Reviews</option>
@@ -635,7 +627,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       {activeTab === 'Reviews' && <ReviewsTab data={calculatedData} utils={{ formatUS, renderPoP }} reviewFilter={reviewFilter} />}
       {activeTab === 'HR' && <WorkforceAnalyticsTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
       {activeTab === 'PnL' && <PnLTab data={calculatedData} utils={{ formatUS, renderPoP }} />}
-      
     </div>
   );
 }
