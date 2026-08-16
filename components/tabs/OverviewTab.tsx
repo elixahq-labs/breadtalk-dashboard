@@ -282,25 +282,30 @@ function OverviewTab({ data, utils }: { data: any; utils: any }) {
             </div>
             <div className="w-full md:w-1/2 flex flex-col justify-center gap-2">
               {data.paymentData.map((p: any, i: number) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-slate-50 pb-2 last:border-0"
-                >
-                  <div className="flex items-center flex-1 min-w-0 pr-2">
-                    <span
-                      className="w-3 h-3 rounded-full mr-2 shrink-0"
-                      style={{ backgroundColor: p.color }}
-                    ></span>
-                    <span
-                      className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden"
-                      title={p.name}
-                    >
-                      {p.name}
-                    </span>
+                <div key={i} className="flex flex-col w-full border-b border-slate-50 pb-2 last:border-0">
+                  <div className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm">
+                    <div className="flex items-center flex-1 min-w-0 pr-2">
+                      <span
+                        className="w-3 h-3 rounded-full mr-2 shrink-0"
+                        style={{ backgroundColor: p.color }}
+                      ></span>
+                      <span
+                        className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden"
+                        title={p.name}
+                      >
+                        {p.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-bold text-[#2b3674] text-right">
+                        {formatUS(p.value)}
+                      </span>
+                      <span className="text-slate-400 font-medium">
+                        ({p.percent.toFixed(1)}%)
+                      </span>
+                      {renderPoP(p.value, p.prevValue, false)}
+                    </div>
                   </div>
-                  <span className="font-bold text-[#2b3674] shrink-0 text-right">
-                    {formatUS(p.value)}
-                  </span>
                 </div>
               ))}
             </div>
@@ -317,7 +322,7 @@ function OverviewTab({ data, utils }: { data: any; utils: any }) {
           <div className="flex-1 w-full relative min-h-[250px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
+                <ComposedChart
                   data={data.trendData}
                   margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
                 >
@@ -348,7 +353,17 @@ function OverviewTab({ data, utils }: { data: any; utils: any }) {
                     fill="#FFB703"
                     name="Discount Rate"
                   />
-                </AreaChart>
+                  {/* Đường so sánh kỳ trước */}
+                  <Line
+                    type="monotone"
+                    dataKey="prevDiscount"
+                    stroke="#94a3b8"
+                    strokeWidth={2}
+                    strokeDasharray="3 3"
+                    dot={false}
+                    name="Prev Discount"
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -387,6 +402,16 @@ function OverviewTab({ data, utils }: { data: any; utils: any }) {
                     strokeWidth={3}
                     dot={{ r: 3, fill: '#ef4444' }}
                     name="Waste Qty"
+                  />
+                  {/* Đường so sánh kỳ trước */}
+                  <Line
+                    type="monotone"
+                    dataKey="prevWaste"
+                    stroke="#94a3b8"
+                    strokeWidth={2}
+                    strokeDasharray="3 3"
+                    dot={false}
+                    name="Prev Waste"
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -567,28 +592,30 @@ function OverviewTab({ data, utils }: { data: any; utils: any }) {
             </div>
             <div className="w-full md:w-1/2 flex flex-col justify-center gap-2">
               {data.wasteByGroupData.map((p: any, i: number) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-slate-50 pb-2 last:border-0"
-                >
-                  <div className="flex items-center flex-1 min-w-0 pr-2">
-                    <span
-                      className="w-3 h-3 rounded-full mr-2 shrink-0"
-                      style={{ backgroundColor: p.color }}
-                    ></span>
-                    <span
-                      className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden"
-                      title={p.name}
-                    >
-                      {p.name}
-                    </span>
+                <div key={i} className="flex flex-col w-full border-b border-slate-50 pb-2 last:border-0">
+                  <div className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm">
+                    <div className="flex items-center flex-1 min-w-0 pr-2">
+                      <span
+                        className="w-3 h-3 rounded-full mr-2 shrink-0"
+                        style={{ backgroundColor: p.color }}
+                      ></span>
+                      <span
+                        className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden"
+                        title={p.name}
+                      >
+                        {p.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-bold text-[#2b3674] text-right">
+                        {formatUS(p.value)}
+                      </span>
+                      <span className="text-slate-400 font-medium">
+                        ({data.wasteQty > 0 ? ((p.value / data.wasteQty) * 100).toFixed(1) : 0}%)
+                      </span>
+                      {renderPoP(p.value, p.prevValue, true)}
+                    </div>
                   </div>
-                  <span className="font-bold text-[#2b3674] shrink-0 text-right">
-                    {formatUS(p.value)}{" "}
-                    <span className="text-slate-400 font-normal ml-1">
-                      ({data.wasteQty > 0 ? ((p.value / data.wasteQty) * 100).toFixed(1) : 0}%)
-                    </span>
-                  </span>
                 </div>
               ))}
             </div>
