@@ -1,8 +1,16 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { AreaChart, Area, BarChart, Bar, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 function MarketingTab({ data, utils }: { data: any, utils: any }) {
   const { formatUS, renderPoP } = utils;
+  
+  // Quản lý trạng thái đóng/mở của các dòng Promotion
+  const [expandedPromos, setExpandedPromos] = useState<Record<string, boolean>>({});
+
+  const togglePromo = (name: string) => {
+    setExpandedPromos(prev => ({ ...prev, [name]: !prev[name] }));
+  };
 
   return (
     <>
@@ -98,15 +106,66 @@ function MarketingTab({ data, utils }: { data: any, utils: any }) {
               </tr>
             </thead>
             <tbody>
-              {data.promoList.map((row:any, idx:number) => (
-                <tr key={idx} className="border-b border-slate-50 text-slate-600 hover:bg-slate-50 transition-colors">
-                  <td className="py-4 px-3 font-semibold text-slate-800 whitespace-normal break-words min-w-[260px] sm:min-w-[350px] leading-snug">{row.name}</td>
-                  <td className="py-4 px-3 text-right text-xs sm:text-sm font-medium">{formatUS(row.qty)}</td>
-                  <td className="py-4 px-3 text-right text-xs sm:text-sm font-medium">{formatUS(row.sales)}</td>
-                  <td className="py-4 px-3 text-right text-xs sm:text-sm font-bold text-orange-500">{formatUS(row.discount)}</td>
-                  <td className="py-4 px-3 text-right font-black text-sm sm:text-base text-[#4318FF]">{formatUS(row.gross)}</td>
-                </tr>
-              ))}
+              {data.promoList.map((row:any, idx:number) => {
+                const isExpanded = expandedPromos[row.name];
+                const hasStores = row.stores && row.stores.length > 0;
+                
+                return (
+                  <React.Fragment key={idx}>
+                    {/* DÒNG TỔNG CỦA PROMOTION */}
+                    <tr 
+                      onClick={() => { if (hasStores) togglePromo(row.name); }}
+                      className={`border-b border-slate-100 text-slate-700 transition-colors ${hasStores ? 'hover:bg-slate-50 cursor-pointer' : ''}`}
+                    >
+                      <td className="py-4 px-3 font-semibold text-slate-800 whitespace-normal break-words min-w-[260px] sm:min-w-[350px] leading-snug flex items-start sm:items-center gap-2">
+                        {hasStores && (
+                          <div className="mt-0.5 sm:mt-0">
+                            {isExpanded ? <ChevronDown size={16} className="text-[#4318FF] shrink-0" /> : <ChevronRight size={16} className="text-slate-400 shrink-0" />}
+                          </div>
+                        )}
+                        {!hasStores && <div className="w-4"></div>}
+                        {row.name}
+                      </td>
+                      <td className="py-4 px-3 text-right text-xs sm:text-sm font-medium">{formatUS(row.qty)}</td>
+                      <td className="py-4 px-3 text-right text-xs sm:text-sm font-medium">{formatUS(row.sales)}</td>
+                      <td className="py-4 px-3 text-right text-xs sm:text-sm font-bold text-orange-500">{formatUS(row.discount)}</td>
+                      <td className="py-4 px-3 text-right font-black text-sm sm:text-base text-[#4318FF]">{formatUS(row.gross)}</td>
+                    </tr>
+
+                    {/* DÒNG CHI TIẾT TỪNG CỬA HÀNG (Hiển thị khi được bấm mở ra) */}
+                    {isExpanded && hasStores && (
+                      <tr className="bg-slate-50/50">
+                        <td colSpan={5} className="p-0 border-b border-slate-200">
+                          <div className="pl-6 sm:pl-10 pr-4 py-3 bg-[#f4f7fe] border-l-4 border-[#4318FF] shadow-inner">
+                             <table className="w-full text-xs sm:text-sm text-left">
+                               <thead>
+                                 <tr className="text-slate-400 border-b border-slate-200">
+                                   <th className="pb-2 px-2 font-medium">Store Breakdown</th>
+                                   <th className="pb-2 px-2 font-medium text-right">Qty</th>
+                                   <th className="pb-2 px-2 font-medium text-right">Sales</th>
+                                   <th className="pb-2 px-2 font-medium text-right">Discount</th>
+                                   <th className="pb-2 px-2 font-medium text-right text-[#2b3674]">Gross Sales</th>
+                                 </tr>
+                               </thead>
+                               <tbody>
+                                 {row.stores.map((s:any, sIdx:number) => (
+                                   <tr key={sIdx} className="border-b border-slate-100 last:border-0 hover:bg-white transition-colors">
+                                      <td className="py-2 px-2 text-slate-600 font-semibold">{s.name}</td>
+                                      <td className="py-2 px-2 text-right text-slate-500">{formatUS(s.qty)}</td>
+                                      <td className="py-2 px-2 text-right text-slate-500">{formatUS(s.sales)}</td>
+                                      <td className="py-2 px-2 text-right text-orange-400 font-medium">{formatUS(s.discount)}</td>
+                                      <td className="py-2 px-2 text-right font-bold text-[#2b3674]">{formatUS(s.gross)}</td>
+                                   </tr>
+                                 ))}
+                               </tbody>
+                             </table>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
               {data.promoList.length === 0 && (
                 <tr><td colSpan={5} className="text-center py-6 text-slate-400 font-medium">No promotion data available.</td></tr>
               )}

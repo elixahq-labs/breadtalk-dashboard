@@ -117,9 +117,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     
     const salesMapByGroup: Record<string, Record<string, any>> = {};
     const wasteMapByGroup: Record<string, Record<string, any>> = {};
-    const promoMap: Record<string, any> = {}; 
+    
+    // CẬP NHẬT KIỂU DỮ LIỆU PROMO MAP ĐỂ LƯU CHI TIẾT TỪNG CỬA HÀNG BÊN TRONG
+    const promoMap: Record<string, { name: string, qty: number, sales: number, discount: number, gross: number, storeMap: Record<string, any> }> = {}; 
 
-    // Đã thay đổi kiểu dữ liệu để chứa cả actual và target
     const wasteByStoreMap: Record<string, { name: string, actual: number, target: number }> = {};
     const wasteGroupMap: Record<string, number> = {};
     const cancelReasonMap: Record<string, number> = {};
@@ -149,13 +150,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const startTime = parseInputDate(startDate) || minTime;
     const endTime = parseInputDate(endDate) || maxTime;
     
-    // THUẬT TOÁN ĐIỀU CHỈNH CHU KỲ (THÁNG, QUÝ, NĂM) THÔNG MINH
     const shiftDate = (timestamp: number, months: number) => {
       const d = new Date(timestamp);
       const expectedMonth = (d.getMonth() + months) % 12;
       const targetMonth = expectedMonth < 0 ? expectedMonth + 12 : expectedMonth;
       d.setMonth(d.getMonth() + months);
-      // Sửa lỗi ngày 31 tháng trước có thể bị lọt qua tháng sau do JS Date
       if (d.getMonth() !== targetMonth) d.setDate(0);
       return d.getTime();
     };
@@ -165,19 +164,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     
     if (startTime && endTime) {
       if (startTime === endTime) {
-        // So sánh đúng 1 ngày
         prevStartTime = startTime - 86400000;
         prevEndTime = endTime - 86400000;
       } else {
-        // Khoảng thời gian
         const diffDays = Math.round((endTime - startTime) / 86400000);
         let shiftM = 0;
-        
-        if (diffDays <= 31) shiftM = -1;       // Dưới 1 tháng -> So sánh MoM
-        else if (diffDays <= 92) shiftM = -3;  // Khoảng 1 Quý -> So sánh QoQ
-        else if (diffDays <= 184) shiftM = -6; // Nửa năm -> So sánh 6 tháng trước
-        else shiftM = -12;                     // Nhiều hơn -> So sánh YoY
-        
+        if (diffDays <= 31) shiftM = -1;
+        else if (diffDays <= 92) shiftM = -3;
+        else if (diffDays <= 184) shiftM = -6;
+        else shiftM = -12;
         prevStartTime = shiftDate(startTime, shiftM);
         prevEndTime = shiftDate(endTime, shiftM);
       }
@@ -233,10 +228,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       if (sku) {
         const key = `${groupName}_${sku}`;
         if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open:0, process:0, import:0, export:0, sales:0, waste:0, stock:0, gap:0 };
-        
         if (tType === 'Stock' && rowTime === openTime) gapMap[key].open += qty;
         if (tType === 'Stock' && rowTime === endTime) gapMap[key].stock += qty;
-        
         if (isCurrentPeriod) {
           if (tType === 'Process') gapMap[key].process += qty;
           if (tType === 'Import') gapMap[key].import += qty;
@@ -307,7 +300,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           
           if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
           wasteByStoreMap[storeCode].actual += qty;
-
+          
           wasteGroupMap[groupName] = (wasteGroupMap[groupName] || 0) + qty;
 
           if (sku) {
@@ -317,7 +310,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           }
         }
 
-        // Lấy số liệu Target Waste
         if (tType === 'Target' && tInfo.toLowerCase() === 'waste') {
           if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
           wasteByStoreMap[storeCode].target += qty;
@@ -327,8 +319,23 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           const pName = tInfo || 'Others';
           mktPromoRev += gross; mktPromoDisc += disc; mktPromoQty += qty;
           trendMap[day].promoRevenue += gross;
-          if (!promoMap[pName]) promoMap[pName] = { name: pName, qty: 0, sales: 0, discount: 0, gross: 0 };
-          promoMap[pName].qty += qty; promoMap[pName].sales += salesVal; promoMap[pName].discount += disc; promoMap[pName].gross += gross;
+          
+          if (!promoMap[pName]) {
+            promoMap[pName] = { name: pName, qty: 0, sales: 0, discount: 0, gross: 0, storeMap: {} };
+          }
+          promoMap[pName].qty += qty; 
+          promoMap[pName].sales += salesVal; 
+          promoMap[pName].discount += disc; 
+          promoMap[pName].gross += gross;
+          
+          // Ghi nhận dữ liệu Promotion theo từng Cửa Hàng
+          if (!promoMap[pName].storeMap[store]) {
+            promoMap[pName].storeMap[store] = { name: store, qty: 0, sales: 0, discount: 0, gross: 0 };
+          }
+          promoMap[pName].storeMap[store].qty += qty;
+          promoMap[pName].storeMap[store].sales += salesVal;
+          promoMap[pName].storeMap[store].discount += disc;
+          promoMap[pName].storeMap[store].gross += gross;
         }
 
         if (tType === 'Ticket') { 
@@ -366,7 +373,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
     const cReasonData = Object.keys(cancelReasonMap).map(k => ({ name: k, qty: cancelReasonMap[k] })).sort((a, b) => b.qty - a.qty);
     
-    // TÍNH TOÁN SỐ NGÀY ĐANG LỌC ĐỂ TÍNH AVERAGE WASTE
     const diffDaysTotal = Math.max(1, Math.round((endTime - startTime) / 86400000) + 1);
 
     const wStoreData = Object.values(wasteByStoreMap).map(s => ({
@@ -400,7 +406,14 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       return b.aging - a.aging;
     });
 
-    const mktPromoList = Object.values(promoMap).sort((a, b) => b.gross - a.gross); 
+    // CẬP NHẬT: Chuyển đổi StoreMap thành mảng và lọc các số > 0 để nhét vào danh sách Promotion
+    const mktPromoList = Object.values(promoMap).map(p => {
+      const storesArr = Object.values(p.storeMap)
+        .filter(s => s.qty !== 0 || s.sales !== 0 || s.discount !== 0 || s.gross !== 0)
+        .sort((a, b) => b.gross - a.gross);
+      return { ...p, stores: storesArr };
+    }).sort((a, b) => b.gross - a.gross);
+
     const mktTopByQty = [...mktPromoList].sort((a, b) => b.qty - a.qty).slice(0, 10);
     const mktTopByRev = [...mktPromoList].sort((a, b) => b.gross - a.gross).slice(0, 10);
 
@@ -436,13 +449,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     };
   }, [baseFilteredData, startDate, endDate, rawData, reviewFilter]);
 
-  // CẬP NHẬT RENDER POP ĐỂ GIỐNG VỚI GIAO DIỆN MẪU (PILL BADGE)
   const renderPoP = (current: number, prev: number, inverseColor: boolean = false, isDarkBg: boolean = false) => {
     if (!prev || prev === 0) return <span className={`text-[11px] sm:text-xs font-normal mt-1 ${isDarkBg ? 'text-blue-200' : 'text-slate-400'}`}>--</span>; 
     const changePercent = ((current - prev) / prev) * 100;
     const isPositive = changePercent > 0;
     
-    // Logic màu sắc giống UI tham khảo
     let bgClass = "";
     let textClass = "";
 
@@ -472,11 +483,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     );
   }
 
-  // CẬP NHẬT BG VÀ NAVBAR THEO GIAO DIỆN
   return (
     <div className="p-3 sm:p-6 bg-[#f4f7fe] min-h-screen font-sans text-slate-800">
       
-      {/* HEADER NAVBAR MỚI */}
       <div className="mb-6 bg-white px-6 py-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
         
         <div className="flex items-center gap-2 w-full md:w-auto justify-center md:justify-start">
@@ -484,7 +493,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           <h1 className="text-xl font-bold text-[#2b3674] tracking-tight">Operations</h1>
         </div>
 
-        {/* PILL NAVIGATION MỚI */}
         <div className="flex bg-slate-50 p-1.5 rounded-full overflow-x-auto w-full md:w-auto shadow-inner no-scrollbar">
           {['Overview', 'Inventory', 'Marketing', 'Reviews', 'HR', 'PnL'].map((tab) => (
             <button 
@@ -510,10 +518,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
       </div>
 
-      {/* TITLE & SLICERS SECTION MỚI */}
       <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
         <div className="w-full md:w-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-[#2b3674]">{activeTab} Dashboard</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#2b3674]">{activeTab === 'HR' ? 'Workforce Analytics' : activeTab} Dashboard</h2>
           <p className="text-sm text-slate-500 mt-1">Your current operations summary and activity</p>
         </div>
 
