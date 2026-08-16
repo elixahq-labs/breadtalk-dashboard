@@ -1,7 +1,6 @@
 import React, { memo } from 'react';
 import { AreaChart, Area, PieChart, Pie, Cell, ComposedChart, Line, LineChart, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-// COMPONENT TÙY CHỈNH: Tự động xuống dòng cho trục Y của Cancel Reasons
 const CustomYAxisTick = (props: any) => {
   const { x, y, payload } = props;
   const text = payload.value;
@@ -272,7 +271,7 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
         </div>
       </div>
 
-      {/* TOP TABLES SẢN PHẨM */}
+      {/* TOP TABLES SẢN PHẨM CẬP NHẬT QTY (N-1) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100">
           <h3 className="font-bold mb-6 text-sm sm:text-base text-[#2b3674]">Top 5 Best-Selling Products (By Group)</h3>
@@ -280,17 +279,21 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="sticky top-0 bg-white shadow-sm z-10">
                 <tr className="text-slate-400 border-b border-slate-100">
-                  <th className="pb-3 font-semibold px-2">SKU</th><th className="pb-3 font-semibold px-2">Product</th><th className="pb-3 font-semibold px-2 text-right">Qty</th>
+                  <th className="pb-3 font-semibold px-2">SKU</th>
+                  <th className="pb-3 font-semibold px-2">Product</th>
+                  <th className="pb-3 font-semibold px-2 text-right">Qty (n-1)</th>
+                  <th className="pb-3 font-semibold px-2 text-right">Qty</th>
                 </tr>
               </thead>
               <tbody>
                 {data.topSalesByGroup.map((g:any, gIdx:number) => (
                   <React.Fragment key={gIdx}>
-                    <tr className="bg-slate-50 border-y border-slate-100"><td colSpan={3} className="py-2 px-3 font-bold text-[#2b3674] uppercase text-xs rounded-lg mt-2 inline-block">Group: {g.group}</td></tr>
+                    <tr className="bg-slate-50 border-y border-slate-100"><td colSpan={4} className="py-2 px-3 font-bold text-[#2b3674] uppercase text-xs rounded-lg mt-2 inline-block">Group: {g.group}</td></tr>
                     {g.items.map((item: any, i: number) => (
                       <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                         <td className="py-3 px-2 text-xs sm:text-sm text-slate-500 font-medium">{item.sku}</td>
                         <td className="py-3 px-2 font-semibold text-slate-800 whitespace-normal break-words min-w-[150px] leading-snug">{item.name}</td>
+                        <td className="py-3 px-2 text-right font-medium text-slate-400 text-xs sm:text-sm">{formatUS(item.prevQty)}</td>
                         <td className="py-3 px-2 text-right font-bold text-[#4318FF] text-xs sm:text-sm">{formatUS(item.qty)}</td>
                       </tr>
                     ))}
@@ -307,17 +310,21 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="sticky top-0 bg-white shadow-sm z-10">
                 <tr className="text-slate-400 border-b border-slate-100">
-                  <th className="pb-3 font-semibold px-2">SKU</th><th className="pb-3 font-semibold px-2">Product</th><th className="pb-3 font-semibold px-2 text-right">Qty</th>
+                  <th className="pb-3 font-semibold px-2">SKU</th>
+                  <th className="pb-3 font-semibold px-2">Product</th>
+                  <th className="pb-3 font-semibold px-2 text-right">Qty (n-1)</th>
+                  <th className="pb-3 font-semibold px-2 text-right">Qty</th>
                 </tr>
               </thead>
               <tbody>
                 {data.topWasteByGroup.map((g:any, gIdx:number) => (
                   <React.Fragment key={gIdx}>
-                    <tr className="bg-slate-50 border-y border-slate-100"><td colSpan={3} className="py-2 px-3 font-bold text-[#2b3674] uppercase text-xs rounded-lg mt-2 inline-block">Group: {g.group}</td></tr>
+                    <tr className="bg-slate-50 border-y border-slate-100"><td colSpan={4} className="py-2 px-3 font-bold text-[#2b3674] uppercase text-xs rounded-lg mt-2 inline-block">Group: {g.group}</td></tr>
                     {g.items.map((item: any, i: number) => (
                       <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                         <td className="py-3 px-2 text-xs sm:text-sm text-slate-500 font-medium">{item.sku}</td>
                         <td className="py-3 px-2 font-semibold text-slate-800 whitespace-normal break-words min-w-[150px] leading-snug">{item.name}</td>
+                        <td className="py-3 px-2 text-right font-medium text-slate-400 text-xs sm:text-sm">{formatUS(item.prevQty)}</td>
                         <td className="py-3 px-2 text-right font-bold text-red-500 text-xs sm:text-sm">{formatUS(item.qty)}</td>
                       </tr>
                     ))}

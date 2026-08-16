@@ -210,11 +210,27 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         || (reviewFilter === 'Customer Surveys' && !isMapsReview);
 
       if (isPrevPeriod) {
-        if (tType === 'Sales') { prevRev += salesVal; prevRevAfterDisc += gross; prevTotalDiscount += disc; prevVat += rowVat; prevSalesQty += qty; }
+        if (tType === 'Sales') { 
+          prevRev += salesVal; prevRevAfterDisc += gross; prevTotalDiscount += disc; prevVat += rowVat; prevSalesQty += qty; 
+          // CẬP NHẬT: Ghi nhận Qty (n-1) cho Best-Selling Products
+          if (sku) {
+            if (!salesMapByGroup[groupName]) salesMapByGroup[groupName] = {};
+            if (!salesMapByGroup[groupName][sku]) salesMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
+            salesMapByGroup[groupName][sku].prevQty += qty;
+          }
+        }
         if (tType === 'Commissions') prevCommissions += salesVal;
         if (tType === 'Count-Bills') prevCountBills += qty;
         if (tType === 'Cancel') prevCancelBills += qty;
-        if (tType === 'Waste') prevWaste += qty;
+        if (tType === 'Waste') { 
+          prevWaste += qty; 
+          // CẬP NHẬT: Ghi nhận Qty (n-1) cho Waste Products
+          if (sku) {
+            if (!wasteMapByGroup[groupName]) wasteMapByGroup[groupName] = {};
+            if (!wasteMapByGroup[groupName][sku]) wasteMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
+            wasteMapByGroup[groupName][sku].prevQty += qty;
+          }
+        }
         if (tType === 'Promotion') { prevMktPromoRev += gross; prevMktPromoDisc += disc; prevMktPromoQty += qty; }
         if (tType === 'Cus-Reviews' || tType === 'Reviews') {
           if (passReviewFilter && qty > 0 && qty <= 5) {
@@ -277,7 +293,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           trendMap[day].revenue += gross; trendMap[day].discountAmt += disc;
           if (sku) {
             if (!salesMapByGroup[groupName]) salesMapByGroup[groupName] = {};
-            if (!salesMapByGroup[groupName][sku]) salesMapByGroup[groupName][sku] = { sku, name, qty: 0 };
+            if (!salesMapByGroup[groupName][sku]) salesMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
             salesMapByGroup[groupName][sku].qty += qty;
           }
         }
@@ -304,7 +320,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
           if (sku) {
             if (!wasteMapByGroup[groupName]) wasteMapByGroup[groupName] = {};
-            if (!wasteMapByGroup[groupName][sku]) wasteMapByGroup[groupName][sku] = { sku, name, qty: 0 };
+            if (!wasteMapByGroup[groupName][sku]) wasteMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
             wasteMapByGroup[groupName][sku].qty += qty;
           }
         }
@@ -365,8 +381,18 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
     const pColors = ['#4318FF', '#F15A2B', '#00B574', '#FFB703', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
-    const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ group, items: Object.values(salesMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
-    const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ group, items: Object.values(wasteMapByGroup[group]).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) })).filter(g => g.items.length > 0);
+    
+    // CẬP NHẬT: Filter để chỉ hiện top 5 các sản phẩm CÓ BÁN/HỦY TRONG KỲ HIỆN TẠI
+    const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ 
+      group, 
+      items: Object.values(salesMapByGroup[group]).filter((i:any) => i.qty > 0).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) 
+    })).filter(g => g.items.length > 0);
+    
+    const tWasteGroup = Object.keys(wasteMapByGroup).map(group => ({ 
+      group, 
+      items: Object.values(wasteMapByGroup[group]).filter((i:any) => i.qty > 0).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5) 
+    })).filter(g => g.items.length > 0);
+    
     const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Others').sort((a, b) => a.group.localeCompare(b.group)); 
 
     const cReasonData = Object.keys(cancelReasonMap).map(k => ({ name: k, qty: cancelReasonMap[k] })).sort((a, b) => b.qty - a.qty);
@@ -504,7 +530,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
           ))}
         </div>
 
-        {/* ĐÃ CHỈNH SỬA TẠI ĐÂY: Hiển thị Project by Arthur 1 dòng, không in đậm, chữ nhỏ */}
         <div className="hidden md:flex items-center">
           <span className="text-[10px] text-slate-400 italic">Project by Arthur</span>
         </div>
