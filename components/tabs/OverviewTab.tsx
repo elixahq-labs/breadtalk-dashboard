@@ -112,7 +112,6 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                   <YAxis width={45} axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#a3aed1'}} tickFormatter={(val) => new Intl.NumberFormat('en-US', {notation: 'compact'}).format(val)} />
                   <Tooltip formatter={(value: any) => formatUS(value)} cursor={{fill: '#f8fafc'}} />
                   <Area type="monotone" dataKey="revenue" stroke="#4318FF" strokeWidth={3} fillOpacity={0.1} fill="#4318FF" name="Revenue" />
-                  {/* CẬP NHẬT: Thêm đường Target cho Revenue */}
                   <Line type="monotone" dataKey="target" stroke="#F15A2B" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Target Revenue" />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -134,12 +133,20 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
             </div>
             <div className="w-full md:w-1/2 flex flex-col justify-center gap-2">
               {data.paymentData.map((p:any, i:number) => (
-                <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-slate-50 pb-2 last:border-0">
-                  <div className="flex items-center flex-1 min-w-0 pr-2">
-                    <span className="w-3 h-3 rounded-full mr-2 shrink-0" style={{ backgroundColor: p.color }}></span>
-                    <span className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden" title={p.name}>{p.name}</span>
+                <div key={i} className="flex flex-col w-full border-b border-slate-50 pb-2 last:border-0">
+                  <div className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm">
+                    <div className="flex items-center flex-1 min-w-0 pr-2">
+                      <span className="w-3 h-3 rounded-full mr-2 shrink-0" style={{ backgroundColor: p.color }}></span>
+                      <span className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden" title={p.name}>{p.name}</span>
+                      {/* Bổ sung % tỷ trọng bên cạnh tên */}
+                      <span className="text-slate-400 font-normal ml-1">({p.percent.toFixed(1)}%)</span>
+                    </div>
+                    <span className="font-bold text-[#2b3674] shrink-0 text-right">{formatUS(p.value)}</span>
                   </div>
-                  <span className="font-bold text-[#2b3674] shrink-0 text-right">{formatUS(p.value)}</span>
+                  {/* CẬP NHẬT: Thêm PoP Indicator phía dưới */}
+                  <div className="flex justify-end mt-0.5">
+                    {renderPoP(p.value, p.prevValue, false)}
+                  </div>
                 </div>
               ))}
             </div>
@@ -147,20 +154,22 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
         </div>
       </div>
 
-      {/* BIỂU ĐỒ DISCOUNT VÀ WASTE */}
+      {/* BIỂU ĐỒ DISCOUNT VÀ WASTE CÓ ĐƯỜNG SO SÁNH */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
         <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col h-full">
           <h3 className="font-bold mb-6 text-sm sm:text-base text-[#2b3674] shrink-0">Daily Discount Rate (%)</h3>
           <div className="flex-1 w-full relative min-h-[250px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.trendData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                <ComposedChart data={data.trendData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#a3aed1'}} />
                   <YAxis width={35} axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#a3aed1'}} tickFormatter={(val) => formatUS(val)} />
                   <Tooltip formatter={(value: any) => `${formatUS(value)}%`} cursor={{fill: '#f8fafc'}} />
                   <Area type="monotone" dataKey="discount" stroke="#FFB703" strokeWidth={3} fillOpacity={0.1} fill="#FFB703" name="Discount Rate" />
-                </AreaChart>
+                  {/* CẬP NHẬT: Thêm đường nét đứt của Discount chu kỳ trước */}
+                  <Line type="monotone" dataKey="prevDiscount" stroke="#94a3b8" strokeWidth={2} strokeDasharray="3 3" dot={false} name="Prev Discount" />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -176,6 +185,8 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                   <YAxis width={40} axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#a3aed1'}} tickFormatter={(val) => formatUS(val)} />
                   <Tooltip formatter={(value: any) => formatUS(value)} />
                   <Line type="monotone" dataKey="waste" stroke="#ef4444" strokeWidth={3} dot={{r:3, fill: '#ef4444'}} name="Waste Qty" />
+                  {/* CẬP NHẬT: Thêm đường nét đứt của Waste chu kỳ trước */}
+                  <Line type="monotone" dataKey="prevWaste" stroke="#94a3b8" strokeWidth={2} strokeDasharray="3 3" dot={false} name="Prev Waste" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -220,7 +231,7 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
         </div>
       </div>
 
-      {/* BIỂU ĐỒ KẾT HỢP WASTE VS TARGET VÀ WASTE BREAKDOWN */}
+      {/* BIỂU ĐỒ KẾT HỢP WASTE VS TARGET VÀ WASTE BREAKDOWN CÓ PoP */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
         <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col h-full">
           <h3 className="font-bold mb-6 text-sm sm:text-base text-[#2b3674] shrink-0">Waste vs Target by Store</h3>
@@ -258,14 +269,19 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
             </div>
             <div className="w-full md:w-1/2 flex flex-col justify-center gap-2">
               {data.wasteByGroupData.map((p:any, i:number) => (
-                <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-slate-50 pb-2 last:border-0">
-                  <div className="flex items-center flex-1 min-w-0 pr-2">
-                    <span className="w-3 h-3 rounded-full mr-2 shrink-0" style={{ backgroundColor: p.color }}></span>
-                    <span className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden" title={p.name}>{p.name}</span>
+                <div key={i} className="flex flex-col w-full border-b border-slate-50 pb-2 last:border-0">
+                  <div className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm">
+                    <div className="flex items-center flex-1 min-w-0 pr-2">
+                      <span className="w-3 h-3 rounded-full mr-2 shrink-0" style={{ backgroundColor: p.color }}></span>
+                      <span className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden" title={p.name}>{p.name}</span>
+                      <span className="text-slate-400 font-normal ml-1">({data.wasteQty > 0 ? ((p.value / data.wasteQty) * 100).toFixed(1) : 0}%)</span>
+                    </div>
+                    <span className="font-bold text-[#2b3674] shrink-0 text-right">{formatUS(p.value)}</span>
                   </div>
-                  <span className="font-bold text-[#2b3674] shrink-0 text-right">
-                    {formatUS(p.value)} <span className="text-slate-400 font-normal ml-1">({data.wasteQty > 0 ? ((p.value / data.wasteQty) * 100).toFixed(1) : 0}%)</span>
-                  </span>
+                  {/* CẬP NHẬT: Thêm PoP Indicator (True color vì waste tăng là xấu) */}
+                  <div className="flex justify-end mt-0.5">
+                    {renderPoP(p.value, p.prevValue, true)}
+                  </div>
                 </div>
               ))}
             </div>
@@ -273,7 +289,7 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
         </div>
       </div>
 
-      {/* TOP TABLES SẢN PHẨM CÓ CỘT QTY (n-1) */}
+      {/* TOP TABLES SẢN PHẨM */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100">
           <h3 className="font-bold mb-6 text-sm sm:text-base text-[#2b3674]">Top 5 Best-Selling Products (By Group)</h3>

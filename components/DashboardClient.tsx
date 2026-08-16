@@ -77,6 +77,16 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).getTime();
   };
 
+  const getDaysInMonth = (monthStr: string) => {
+    const months: any = { Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9, Oct:10, Nov:11, Dec:12 };
+    const parts = monthStr.split('.');
+    if(parts.length !== 2) return 30; // Default fallback
+    const m = months[parts[0]];
+    let y = parseInt(parts[1], 10);
+    if (y < 100) y += 2000;
+    return new Date(y, m, 0).getDate(); // Returns last day of the month
+  };
+
   const stores = useMemo(() => Array.from(new Set(rawData.map(d => clean(d['Store-Name'])).filter(Boolean))), [rawData]);
   const groups = useMemo(() => {
     const uniqueGroups = Array.from(new Set(rawData.map(d => clean(d['Group'])).filter(Boolean)));
@@ -106,6 +116,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
     const trendMap: Record<string, any> = {};
     const paymentMap: Record<string, number> = {};
+    const prevPaymentMap: Record<string, number> = {};
+    
     const gapMap: Record<string, any> = {};
     const ticketAgg: Record<string, any> = {};
     const pStats = { buying: 0, process: 0, import: 0, missingWaste: 0, missingStock: 0 };
@@ -121,6 +133,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
     const wasteByStoreMap: Record<string, { name: string, actual: number, target: number }> = {};
     const wasteGroupMap: Record<string, number> = {};
+    const prevWasteGroupMap: Record<string, number> = {};
     const cancelReasonMap: Record<string, number> = {};
 
     let mapsSumRating = 0, mapsCountRating = 0;
@@ -147,7 +160,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     
     const startTime = parseInputDate(startDate) || minTime;
     const endTime = parseInputDate(endDate) || maxTime;
-    
+    const diffDaysTotal = Math.max(1, Math.round((endTime - startTime) / 86400000) + 1);
+
     const shiftDate = (timestamp: number, months: number) => {
       const d = new Date(timestamp);
       const expectedMonth = (d.getMonth() + months) % 12;
@@ -165,11 +179,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         prevStartTime = startTime - 86400000;
         prevEndTime = endTime - 86400000;
       } else {
-        const diffDays = Math.round((endTime - startTime) / 86400000);
         let shiftM = 0;
-        if (diffDays <= 31) shiftM = -1;
-        else if (diffDays <= 92) shiftM = -3;
-        else if (diffDays <= 184) shiftM = -6;
+        if (diffDaysTotal <= 31) shiftM = -1;
+        else if (diffDaysTotal <= 92) shiftM = -3;
+        else if (diffDaysTotal <= 184) shiftM = -6;
         else shiftM = -12;
         prevStartTime = shiftDate(startTime, shiftM);
         prevEndTime = shiftDate(endTime, shiftM);
@@ -178,16 +191,34 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
     const openTime = startTime - 86400000;
 
+    // STEP 1: INITIALIZE TREND MAP FOR BOTH CURRENT AND PREV TO ENSURE MATCHING DAYS
+    // Create an array of formatted "day" strings (e.g., "01", "02") for the selected period
+    for (let i = 0; i < diffDaysTotal; i++) {
+        const d = new Date(startTime + i * 86400000);
+        const dayStr = String(d.getDate()).padStart(2, '0');
+        // Map will hold current data, and we will find corresponding prev data based on index
+        if (!trendMap[dayStr]) {
+            trendMap[dayStr] = { 
+                day: dayStr, 
+                revenue: 0, prevRevenue: 0,
+                target: 0, 
+                discountAmt: 0, prevDiscountAmt: 0,
+                waste: 0, prevWaste: 0,
+                cancel: 0, promoRevenue: 0 
+            };
+        }
+    }
+
     baseFilteredData.forEach(row => {
       const store = clean(row['Store-Name']);
       const storeCode = clean(row['Store-Code']) || store; 
-      
       const groupName = clean(row['Group']) || 'Others';
       const sku = clean(row['SKU']);
       const name = clean(row['Product-Name']);
       const tType = clean(row['Ticket-Type']);
       const tInfo = clean(row['Type-Info']);
       const dateStr = clean(row['Date']);
+      const monthStr = clean(row['Month']); // Lấy cột Month
       const rowTime = parseDataDate(dateStr);
       
       const qty = parseNum(row['Qty']);
@@ -195,7 +226,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const disc = parseNum(row['Discount']);
       const salesVal = parseNum(row['Sales']);
       const rowVat = parseNum(row['VAT']);
-      
       const sourceMistake = clean(row['Source-Mistake']);
       const mistakeDetails = clean(row['Mistake-Details']);
 
@@ -203,10 +233,56 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const isPrevPeriod = rowTime && rowTime >= prevStartTime && rowTime <= prevEndTime;
       const isDateEmpty = !rowTime; 
 
+      // XỬ LÝ TARGET THÁNG ĐƯỢC CHIA VÀO KỲ HIỆN TẠI
+      if (tType === 'Target' && monthStr) {
+          // Parse monthStr (e.g., "Aug.24") to check if it overlaps with selected period
+          const monthsMapping: any = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+          const p = monthStr.split('.');
+          if (p.length === 2) {
+              const mIdx = monthsMapping[p[0]];
+              let y = parseInt(p[1], 10);
+              if (y < 100) y += 2000;
+              
+              const targetMonthStart = new Date(y, mIdx, 1).getTime();
+              const targetMonthEnd = new Date(y, mIdx + 1, 0).getTime();
+              
+              // Check overlap with current sliced period
+              const overlapStart = Math.max(startTime, targetMonthStart);
+              const overlapEnd = Math.min(endTime, targetMonthEnd);
+              
+              if (overlapStart <= overlapEnd) {
+                  const daysInTargetMonth = new Date(y, mIdx + 1, 0).getDate();
+                  const overlapDays = Math.round((overlapEnd - overlapStart) / 86400000) + 1;
+                  
+                  // Tính Target chia theo tỷ trọng ngày
+                  const allocatedSalesTarget = (salesVal / daysInTargetMonth) * overlapDays;
+                  const allocatedWasteTarget = (qty / daysInTargetMonth) * overlapDays;
+                  
+                  // Phân bổ đều vào các ngày trong trendMap đang nằm trong overlap
+                  const dailySalesTarget = salesVal / daysInTargetMonth;
+
+                  for (let i = 0; i < overlapDays; i++) {
+                      const curDayTime = overlapStart + (i * 86400000);
+                      const dObj = new Date(curDayTime);
+                      const dStr = String(dObj.getDate()).padStart(2, '0');
+                      if (trendMap[dStr]) {
+                          if (tInfo === 'Sales') trendMap[dStr].target += dailySalesTarget;
+                      }
+                  }
+
+                  if (tInfo === 'Sales') {
+                      // Total Target handled via daily allocation above or could be summed up separately if needed.
+                  } else if (tInfo.toLowerCase() === 'waste') {
+                      if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
+                      wasteByStoreMap[storeCode].target += allocatedWasteTarget;
+                  }
+              }
+          }
+      }
+
+
       const isMapsReview = sourceMistake.includes('Maps') || tType === 'Maps-Reviews';
-      const passReviewFilter = reviewFilter === 'All' 
-        || (reviewFilter === 'Google Maps' && isMapsReview)
-        || (reviewFilter === 'Customer Surveys' && !isMapsReview);
+      const passReviewFilter = reviewFilter === 'All' || (reviewFilter === 'Google Maps' && isMapsReview) || (reviewFilter === 'Customer Surveys' && !isMapsReview);
 
       if (isPrevPeriod) {
         if (tType === 'Sales') { 
@@ -216,16 +292,41 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             if (!salesMapByGroup[groupName][sku]) salesMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
             salesMapByGroup[groupName][sku].prevQty += qty;
           }
+          // Log daily prev for charts. Find matching day index.
+          const pDayIdx = Math.round((rowTime - prevStartTime) / 86400000);
+          const matchedCurrentDate = new Date(startTime + (pDayIdx * 86400000));
+          if (matchedCurrentDate.getTime() <= endTime) {
+              const dStr = String(matchedCurrentDate.getDate()).padStart(2, '0');
+              if (trendMap[dStr]) {
+                  trendMap[dStr].prevRevenue += gross;
+                  trendMap[dStr].prevDiscountAmt += disc;
+              }
+          }
         }
         if (tType === 'Commissions') prevCommissions += salesVal;
         if (tType === 'Count-Bills') prevCountBills += qty;
         if (tType === 'Cancel') prevCancelBills += qty;
+        if (tType === 'Payment') {
+            const pMethod = tInfo || 'Others';
+            prevPaymentMap[pMethod] = (prevPaymentMap[pMethod] || 0) + salesVal;
+        }
         if (tType === 'Waste') { 
           prevWaste += qty; 
+          prevWasteGroupMap[groupName] = (prevWasteGroupMap[groupName] || 0) + qty;
+          
           if (sku) {
             if (!wasteMapByGroup[groupName]) wasteMapByGroup[groupName] = {};
             if (!wasteMapByGroup[groupName][sku]) wasteMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
             wasteMapByGroup[groupName][sku].prevQty += qty;
+          }
+
+          const pDayIdx = Math.round((rowTime - prevStartTime) / 86400000);
+          const matchedCurrentDate = new Date(startTime + (pDayIdx * 86400000));
+          if (matchedCurrentDate.getTime() <= endTime) {
+              const dStr = String(matchedCurrentDate.getDate()).padStart(2, '0');
+              if (trendMap[dStr]) {
+                  trendMap[dStr].prevWaste += qty;
+              }
           }
         }
         if (tType === 'Promotion') { prevMktPromoRev += gross; prevMktPromoDisc += disc; prevMktPromoQty += qty; }
@@ -283,7 +384,8 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         activeStores.add(store);
 
         const day = dateStr.split('-')[0] || 'N/A';
-        if (!trendMap[day]) trendMap[day] = { day, revenue: 0, target: 0, discountAmt: 0, waste: 0, countBill: 0, cancel: 0, promoRevenue: 0 };
+        // Note: trendMap is already initialized for valid days, this ensures 'N/A' or unexpected gets logged but might not chart well
+        if (!trendMap[day]) trendMap[day] = { day, revenue: 0, prevRevenue: 0, target: 0, discountAmt: 0, prevDiscountAmt: 0, waste: 0, prevWaste: 0, countBill: 0, cancel: 0, promoRevenue: 0 };
 
         if (tType === 'Sales') {
           curRev += salesVal; curRevAfterDisc += gross; curVat += rowVat; totalDiscount += disc; salesQty += qty;
@@ -318,16 +420,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             if (!wasteMapByGroup[groupName]) wasteMapByGroup[groupName] = {};
             if (!wasteMapByGroup[groupName][sku]) wasteMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
             wasteMapByGroup[groupName][sku].qty += qty;
-          }
-        }
-
-        // CẬP NHẬT: Chia rõ 2 loại Target: Sales và Waste
-        if (tType === 'Target') {
-          if (tInfo === 'Sales') {
-            trendMap[day].target += salesVal; // Target của Revenue
-          } else if (tInfo.toLowerCase() === 'waste') {
-            if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
-            wasteByStoreMap[storeCode].target += qty; // Target của Waste
           }
         }
 
@@ -379,9 +471,22 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const prevNetRevenue = prevRevAfterDisc - prevCommissions - prevVat - prevRoyalty;
     const pWasteRatio = (prevSalesQty + prevWaste) > 0 ? (prevWaste / (prevSalesQty + prevWaste)) * 100 : 0;
 
-    const tData = Object.values(trendMap).map(d => ({ ...d, discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0 })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
+    // Tính toán thêm Discount Rate cho biểu đồ
+    const tData = Object.values(trendMap).map(d => ({ 
+      ...d, 
+      discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0,
+      prevDiscount: d.prevRevenue > 0 ? (d.prevDiscountAmt / d.prevRevenue) * 100 : 0
+    })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
+    
+    // Xử lý Dữ liệu Payment Methods kèm Prev
     const pColors = ['#4318FF', '#F15A2B', '#00B574', '#FFB703', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
-    const pData = Object.keys(paymentMap).map(k => ({ name: k, value: paymentMap[k] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
+    const totalPayment = Object.values(paymentMap).reduce((sum, val) => sum + val, 0);
+    const pData = Object.keys(paymentMap).map(k => ({ 
+      name: k, 
+      value: paymentMap[k],
+      prevValue: prevPaymentMap[k] || 0,
+      percent: totalPayment > 0 ? (paymentMap[k] / totalPayment) * 100 : 0
+    })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: pColors[i % pColors.length] }));
     
     const tSalesGroup = Object.keys(salesMapByGroup).map(group => ({ 
       group, 
@@ -397,15 +502,19 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
     const cReasonData = Object.keys(cancelReasonMap).map(k => ({ name: k, qty: cancelReasonMap[k] })).sort((a, b) => b.qty - a.qty);
     
-    const diffDaysTotal = Math.max(1, Math.round((endTime - startTime) / 86400000) + 1);
-
     const wStoreData = Object.values(wasteByStoreMap).map(s => ({
       ...s,
       avgWaste: s.actual / diffDaysTotal
     })).sort((a, b) => b.actual - a.actual);
     
+    // Xử lý dữ liệu Waste Breakdown kèm Prev
     const wColors = ['#ef4444', '#f97316', '#f59e0b', '#fbbf24', '#eab308', '#84cc16', '#22c55e', '#0ea5e9', '#3b82f6', '#8b5cf6', '#d946ef'];
-    const wGroupData = Object.keys(wasteGroupMap).map((k, i) => ({ name: k, value: wasteGroupMap[k], color: wColors[i % wColors.length] })).sort((a, b) => b.value - a.value);
+    const wGroupData = Object.keys(wasteGroupMap).map((k, i) => ({ 
+      name: k, 
+      value: wasteGroupMap[k], 
+      prevValue: prevWasteGroupMap[k] || 0,
+      color: wColors[i % wColors.length] 
+    })).sort((a, b) => b.value - a.value);
 
     const allTickets = Object.values(ticketAgg).filter(t => t.qty > 0);
     const missingTicketsList: any[] = [];
@@ -476,11 +585,15 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     if (!prev || prev === 0) return <span className={`text-[11px] sm:text-xs font-normal mt-1 ${isDarkBg ? 'text-blue-200' : 'text-slate-400'}`}>--</span>; 
     const changePercent = ((current - prev) / prev) * 100;
     const isPositive = changePercent > 0;
+    const isZero = changePercent === 0;
     
     let bgClass = "";
     let textClass = "";
 
-    if (isDarkBg) {
+    if (isZero) {
+        bgClass = isDarkBg ? 'bg-slate-400/20' : 'bg-slate-100';
+        textClass = isDarkBg ? 'text-slate-300' : 'text-slate-500';
+    } else if (isDarkBg) {
       bgClass = isPositive ? (inverseColor ? 'bg-red-400/20' : 'bg-[#00d084]/20') : (inverseColor ? 'bg-[#00d084]/20' : 'bg-red-400/20');
       textClass = isPositive ? (inverseColor ? 'text-red-300' : 'text-[#00d084]') : (inverseColor ? 'text-[#00d084]' : 'text-red-300');
     } else {
@@ -488,11 +601,11 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       textClass = isPositive ? (inverseColor ? 'text-red-600' : 'text-emerald-600') : (inverseColor ? 'text-emerald-600' : 'text-red-600');
     }
 
-    const arrow = isPositive ? '↑' : '↓';
+    const arrow = isZero ? '-' : (isPositive ? '↑' : '↓');
     
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-wide mt-1 w-max ${bgClass} ${textClass}`}>
-        {arrow} {Math.abs(changePercent).toFixed(1)}% <span className="ml-1 font-medium opacity-70 hidden xl:inline">vs prev</span>
+        {arrow} {isZero ? '0' : Math.abs(changePercent).toFixed(1)}% <span className="ml-1 font-medium opacity-70 hidden xl:inline">vs prev</span>
       </span>
     );
   };
