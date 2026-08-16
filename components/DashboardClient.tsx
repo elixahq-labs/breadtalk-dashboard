@@ -77,16 +77,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).getTime();
   };
 
-  const getDaysInMonth = (monthStr: string) => {
-    const months: any = { Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9, Oct:10, Nov:11, Dec:12 };
-    const parts = monthStr.split('.');
-    if(parts.length !== 2) return 30; // Default fallback
-    const m = months[parts[0]];
-    let y = parseInt(parts[1], 10);
-    if (y < 100) y += 2000;
-    return new Date(y, m, 0).getDate(); // Returns last day of the month
-  };
-
   const stores = useMemo(() => Array.from(new Set(rawData.map(d => clean(d['Store-Name'])).filter(Boolean))), [rawData]);
   const groups = useMemo(() => {
     const uniqueGroups = Array.from(new Set(rawData.map(d => clean(d['Group'])).filter(Boolean)));
@@ -191,12 +181,9 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
     const openTime = startTime - 86400000;
 
-    // STEP 1: INITIALIZE TREND MAP FOR BOTH CURRENT AND PREV TO ENSURE MATCHING DAYS
-    // Create an array of formatted "day" strings (e.g., "01", "02") for the selected period
     for (let i = 0; i < diffDaysTotal; i++) {
         const d = new Date(startTime + i * 86400000);
         const dayStr = String(d.getDate()).padStart(2, '0');
-        // Map will hold current data, and we will find corresponding prev data based on index
         if (!trendMap[dayStr]) {
             trendMap[dayStr] = { 
                 day: dayStr, 
@@ -218,7 +205,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const tType = clean(row['Ticket-Type']);
       const tInfo = clean(row['Type-Info']);
       const dateStr = clean(row['Date']);
-      const monthStr = clean(row['Month']); // Lấy cột Month
+      const monthStr = clean(row['Month']); 
       const rowTime = parseDataDate(dateStr);
       
       const qty = parseNum(row['Qty']);
@@ -233,53 +220,45 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       const isPrevPeriod = rowTime && rowTime >= prevStartTime && rowTime <= prevEndTime;
       const isDateEmpty = !rowTime; 
 
-      // XỬ LÝ TARGET THÁNG ĐƯỢC CHIA VÀO KỲ HIỆN TẠI
-      if (tType === 'Target' && monthStr) {
-          // Parse monthStr (e.g., "Aug.24") to check if it overlaps with selected period
-          const monthsMapping: any = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
-          const p = monthStr.split('.');
-          if (p.length === 2) {
-              const mIdx = monthsMapping[p[0]];
-              let y = parseInt(p[1], 10);
-              if (y < 100) y += 2000;
-              
-              const targetMonthStart = new Date(y, mIdx, 1).getTime();
-              const targetMonthEnd = new Date(y, mIdx + 1, 0).getTime();
-              
-              // Check overlap with current sliced period
-              const overlapStart = Math.max(startTime, targetMonthStart);
-              const overlapEnd = Math.min(endTime, targetMonthEnd);
-              
-              if (overlapStart <= overlapEnd) {
-                  const daysInTargetMonth = new Date(y, mIdx + 1, 0).getDate();
-                  const overlapDays = Math.round((overlapEnd - overlapStart) / 86400000) + 1;
-                  
-                  // Tính Target chia theo tỷ trọng ngày
-                  const allocatedSalesTarget = (salesVal / daysInTargetMonth) * overlapDays;
-                  const allocatedWasteTarget = (qty / daysInTargetMonth) * overlapDays;
-                  
-                  // Phân bổ đều vào các ngày trong trendMap đang nằm trong overlap
-                  const dailySalesTarget = salesVal / daysInTargetMonth;
-
-                  for (let i = 0; i < overlapDays; i++) {
-                      const curDayTime = overlapStart + (i * 86400000);
-                      const dObj = new Date(curDayTime);
-                      const dStr = String(dObj.getDate()).padStart(2, '0');
-                      if (trendMap[dStr]) {
-                          if (tInfo === 'Sales') trendMap[dStr].target += dailySalesTarget;
+      if (tType === 'Target') {
+          if (tInfo.toLowerCase() === 'waste') {
+              if (isDateEmpty && monthStr) {
+                  const monthsMapping: any = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+                  const p = monthStr.split('.');
+                  if (p.length === 2) {
+                      const mIdx = monthsMapping[p[0]];
+                      let y = parseInt(p[1], 10);
+                      if (y < 100) y += 2000;
+                      
+                      const targetMonthStart = new Date(y, mIdx, 1).getTime();
+                      const targetMonthEnd = new Date(y, mIdx + 1, 0).getTime();
+                      
+                      const overlapStart = Math.max(startTime, targetMonthStart);
+                      const overlapEnd = Math.min(endTime, targetMonthEnd);
+                      
+                      if (overlapStart <= overlapEnd) {
+                          const overlapDays = Math.round((overlapEnd - overlapStart) / 86400000) + 1;
+                          const allocatedWasteTarget = qty * overlapDays;
+                          
+                          if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
+                          wasteByStoreMap[storeCode].target += allocatedWasteTarget;
                       }
                   }
-
-                  if (tInfo === 'Sales') {
-                      // Total Target handled via daily allocation above or could be summed up separately if needed.
-                  } else if (tInfo.toLowerCase() === 'waste') {
-                      if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
-                      wasteByStoreMap[storeCode].target += allocatedWasteTarget;
-                  }
+              } else if (isDateEmpty && !monthStr) {
+                  if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
+                  wasteByStoreMap[storeCode].target += qty * diffDaysTotal;
+              } else if (isCurrentPeriod) {
+                  if (!wasteByStoreMap[storeCode]) wasteByStoreMap[storeCode] = { name: storeCode, actual: 0, target: 0 };
+                  wasteByStoreMap[storeCode].target += qty;
+              }
+          }
+          else if (tInfo === 'Sales' && isCurrentPeriod) {
+              const dayStr = dateStr.split('-')[0] || 'N/A';
+              if (trendMap[dayStr]) {
+                  trendMap[dayStr].target += salesVal;
               }
           }
       }
-
 
       const isMapsReview = sourceMistake.includes('Maps') || tType === 'Maps-Reviews';
       const passReviewFilter = reviewFilter === 'All' || (reviewFilter === 'Google Maps' && isMapsReview) || (reviewFilter === 'Customer Surveys' && !isMapsReview);
@@ -292,7 +271,6 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
             if (!salesMapByGroup[groupName][sku]) salesMapByGroup[groupName][sku] = { sku, name, qty: 0, prevQty: 0 };
             salesMapByGroup[groupName][sku].prevQty += qty;
           }
-          // Log daily prev for charts. Find matching day index.
           const pDayIdx = Math.round((rowTime - prevStartTime) / 86400000);
           const matchedCurrentDate = new Date(startTime + (pDayIdx * 86400000));
           if (matchedCurrentDate.getTime() <= endTime) {
@@ -380,11 +358,10 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
         if (!isCurrentPeriod) return; 
 
         fCount++;
-        activeDates.add(dateStr);
+        if (dateStr) activeDates.add(dateStr);
         activeStores.add(store);
 
-        const day = dateStr.split('-')[0] || 'N/A';
-        // Note: trendMap is already initialized for valid days, this ensures 'N/A' or unexpected gets logged but might not chart well
+        const day = dateStr ? (dateStr.split('-')[0] || 'N/A') : 'N/A';
         if (!trendMap[day]) trendMap[day] = { day, revenue: 0, prevRevenue: 0, target: 0, discountAmt: 0, prevDiscountAmt: 0, waste: 0, prevWaste: 0, countBill: 0, cancel: 0, promoRevenue: 0 };
 
         if (tType === 'Sales') {
@@ -471,14 +448,12 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const prevNetRevenue = prevRevAfterDisc - prevCommissions - prevVat - prevRoyalty;
     const pWasteRatio = (prevSalesQty + prevWaste) > 0 ? (prevWaste / (prevSalesQty + prevWaste)) * 100 : 0;
 
-    // Tính toán thêm Discount Rate cho biểu đồ
     const tData = Object.values(trendMap).map(d => ({ 
       ...d, 
       discount: d.revenue > 0 ? (d.discountAmt / d.revenue) * 100 : 0,
       prevDiscount: d.prevRevenue > 0 ? (d.prevDiscountAmt / d.prevRevenue) * 100 : 0
     })).sort((a, b) => parseInt(a.day) - parseInt(b.day));
     
-    // Xử lý Dữ liệu Payment Methods kèm Prev
     const pColors = ['#4318FF', '#F15A2B', '#00B574', '#FFB703', '#8b5cf6', '#ec4899', '#0ea5e9', '#84cc16', '#a855f7', '#f43f5e', '#64748b'];
     const totalPayment = Object.values(paymentMap).reduce((sum, val) => sum + val, 0);
     const pData = Object.keys(paymentMap).map(k => ({ 
@@ -501,13 +476,12 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
     const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Others').sort((a, b) => a.group.localeCompare(b.group)); 
 
     const cReasonData = Object.keys(cancelReasonMap).map(k => ({ name: k, qty: cancelReasonMap[k] })).sort((a, b) => b.qty - a.qty);
-    
+
     const wStoreData = Object.values(wasteByStoreMap).map(s => ({
       ...s,
       avgWaste: s.actual / diffDaysTotal
     })).sort((a, b) => b.actual - a.actual);
     
-    // Xử lý dữ liệu Waste Breakdown kèm Prev
     const wColors = ['#ef4444', '#f97316', '#f59e0b', '#fbbf24', '#eab308', '#84cc16', '#22c55e', '#0ea5e9', '#3b82f6', '#8b5cf6', '#d946ef'];
     const wGroupData = Object.keys(wasteGroupMap).map((k, i) => ({ 
       name: k, 
