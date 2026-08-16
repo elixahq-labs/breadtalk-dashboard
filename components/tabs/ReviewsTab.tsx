@@ -7,43 +7,43 @@ function ReviewsTab({ data, utils, reviewFilter }: { data: any, utils: any, revi
 
   return (
     <>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
-        <div className={`bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center transition-opacity ${reviewFilter === 'Customer Surveys' ? 'opacity-40' : ''}`}>
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold uppercase tracking-wider mb-3">Maps Avg Rating</p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
+        <div className={`bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center transition-opacity ${reviewFilter === 'Customer Surveys' ? 'opacity-40' : ''}`}>
+          <p className="text-[10px] sm:text-sm text-slate-500 font-semibold uppercase tracking-wider mb-2">Maps Avg Rating</p>
           <div className="flex flex-col items-center justify-center">
             <div className="flex items-center justify-center">
-              <span className="text-4xl sm:text-5xl font-black text-[#2b3674] mr-2">{data.avgMapsRating.toFixed(2)}</span>
-              <Star className="text-yellow-400 fill-yellow-400 w-8 h-8 sm:w-10 sm:h-10 drop-shadow-sm" />
+              <span className="text-2xl min-[375px]:text-3xl sm:text-4xl lg:text-5xl font-black text-[#2b3674] mr-1 sm:mr-2">{data.avgMapsRating.toFixed(2)}</span>
+              <Star className="text-yellow-400 fill-yellow-400 w-6 h-6 sm:w-10 sm:h-10 drop-shadow-sm" />
             </div>
             {renderPoP(data.avgMapsRating, data.prevStats.prevAvgMaps, false)}
           </div>
         </div>
-        <div className={`bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center transition-opacity ${reviewFilter === 'Google Maps' ? 'opacity-40' : ''}`}>
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold uppercase tracking-wider mb-3">Survey Avg Rating</p>
+        <div className={`bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center transition-opacity ${reviewFilter === 'Google Maps' ? 'opacity-40' : ''}`}>
+          <p className="text-[10px] sm:text-sm text-slate-500 font-semibold uppercase tracking-wider mb-2">Survey Avg Rating</p>
           <div className="flex flex-col items-center justify-center">
             <div className="flex items-center justify-center">
-              <span className="text-4xl sm:text-5xl font-black text-[#2b3674] mr-2">{data.avgCusRating.toFixed(2)}</span>
-              <Star className="text-yellow-400 fill-yellow-400 w-8 h-8 sm:w-10 sm:h-10 drop-shadow-sm" />
+              <span className="text-2xl min-[375px]:text-3xl sm:text-4xl lg:text-5xl font-black text-[#2b3674] mr-1 sm:mr-2">{data.avgCusRating.toFixed(2)}</span>
+              <Star className="text-yellow-400 fill-yellow-400 w-6 h-6 sm:w-10 sm:h-10 drop-shadow-sm" />
             </div>
             {renderPoP(data.avgCusRating, data.prevStats.prevAvgCus, false)}
           </div>
         </div>
-        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center">
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold uppercase tracking-wider mb-3">Total Reviews</p>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center">
+          <p className="text-[10px] sm:text-sm text-slate-500 font-semibold uppercase tracking-wider mb-2">Total Reviews</p>
           <div className="flex flex-col items-center justify-center">
             <div className="flex items-center justify-center">
-              <span className="text-4xl sm:text-5xl font-black text-[#00d084]">{formatUS(data.totalReviews)}</span>
+              <span className="text-2xl min-[375px]:text-3xl sm:text-4xl lg:text-5xl font-black text-[#00d084]">{formatUS(data.totalReviews)}</span>
             </div>
             {renderPoP(data.totalReviews, data.prevStats.prevTotalReviews, false)}
           </div>
         </div>
-        <div className="bg-[#2b3674] p-5 sm:p-6 rounded-3xl shadow-lg flex flex-col justify-center items-center text-center relative overflow-hidden">
+        <div className="bg-[#2b3674] p-4 sm:p-6 rounded-3xl shadow-lg flex flex-col justify-center items-center text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
-          <p className="text-xs sm:text-sm text-blue-200 font-semibold uppercase tracking-wider mb-3">Operational Mistakes</p>
+          <p className="text-[10px] sm:text-sm text-blue-200 font-semibold uppercase tracking-wider mb-2">Mistakes</p>
           <div className="flex flex-col items-center justify-center relative z-10">
             <div className="flex items-center justify-center">
-              <span className="text-4xl sm:text-5xl font-black text-white mr-2">{formatUS(data.totalMistakes)}</span>
-              <AlertCircle className="text-red-400 w-8 h-8 sm:w-10 sm:h-10" />
+              <span className="text-2xl min-[375px]:text-3xl sm:text-4xl lg:text-5xl font-black text-white mr-1 sm:mr-2">{formatUS(data.totalMistakes)}</span>
+              <AlertCircle className="text-red-400 w-6 h-6 sm:w-10 sm:h-10" />
             </div>
             {renderPoP(data.totalMistakes, data.prevStats.prevTotalMistakes, true, true)}
           </div>

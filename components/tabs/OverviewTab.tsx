@@ -36,67 +36,67 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
   
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-6 mb-8">
         
         {/* HIGHLIGHTED CARD THEO UI MỚI */}
-        <div className="bg-[#2b3674] p-5 sm:p-6 rounded-3xl shadow-lg flex flex-col justify-between relative overflow-hidden">
+        <div className="bg-[#2b3674] p-4 sm:p-6 rounded-3xl shadow-lg flex flex-col justify-between relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
           <div className="relative z-10">
-            <p className="text-xs sm:text-sm text-blue-200 font-semibold mb-2">Total Revenue</p>
+            <p className="text-[11px] sm:text-sm text-blue-200 font-semibold mb-1 sm:mb-2">Total Revenue</p>
             <div className="flex flex-col">
-              <p className="text-2xl sm:text-3xl font-bold text-white truncate" title={formatUS(data.revenue)}>{formatUS(data.revenue)}</p>
+              <p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-white whitespace-nowrap tracking-tighter">{formatUS(data.revenue)}</p>
               {renderPoP(data.revenue, data.prevStats.revenue, false, true)}
             </div>
           </div>
         </div>
 
         {/* CÁC CARD CÒN LẠI DÙNG UI SÁNG */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold mb-2">Revenue after disc.</p>
-          <div className="flex flex-col"><p className="text-2xl sm:text-3xl font-bold text-[#2b3674] truncate" title={formatUS(data.revAfterDisc)}>{formatUS(data.revAfterDisc)}</p>{renderPoP(data.revAfterDisc, data.prevStats.revAfterDisc, false)}</div>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Revenue after disc.</p>
+          <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-[#2b3674] whitespace-nowrap tracking-tighter">{formatUS(data.revAfterDisc)}</p>{renderPoP(data.revAfterDisc, data.prevStats.revAfterDisc, false)}</div>
         </div>
-        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold mb-2">Commissions</p>
-          <div className="flex flex-col"><p className="text-2xl sm:text-3xl font-bold text-slate-800 truncate" title={formatUS(data.commissions)}>{formatUS(data.commissions)}</p>{renderPoP(data.commissions, data.prevStats.commissions, true)}</div>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Commissions</p>
+          <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-slate-800 whitespace-nowrap tracking-tighter">{formatUS(data.commissions)}</p>{renderPoP(data.commissions, data.prevStats.commissions, true)}</div>
         </div>
-        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold mb-2">VAT</p>
-          <div className="flex flex-col"><p className="text-2xl sm:text-3xl font-bold text-slate-800 truncate" title={formatUS(data.vatValue)}>{formatUS(data.vatValue)}</p>{renderPoP(data.vatValue, data.prevStats.vatValue, true)}</div>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">VAT</p>
+          <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-slate-800 whitespace-nowrap tracking-tighter">{formatUS(data.vatValue)}</p>{renderPoP(data.vatValue, data.prevStats.vatValue, true)}</div>
         </div>
-        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold mb-2">Royalty (5%)</p>
-          <div className="flex flex-col"><p className="text-2xl sm:text-3xl font-bold text-slate-800 truncate" title={formatUS(data.royalty)}>{formatUS(data.royalty)}</p>{renderPoP(data.royalty, data.prevStats.royalty, true)}</div>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Royalty (5%)</p>
+          <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-slate-800 whitespace-nowrap tracking-tighter">{formatUS(data.royalty)}</p>{renderPoP(data.royalty, data.prevStats.royalty, true)}</div>
         </div>
-        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold mb-2">Net revenue</p>
-          <div className="flex flex-col"><p className="text-2xl sm:text-3xl font-bold text-[#00d084] truncate" title={formatUS(data.trueNetRevenue)}>{formatUS(data.trueNetRevenue)}</p>{renderPoP(data.trueNetRevenue, data.prevStats.trueNetRevenue, false)}</div>
-          <p className="text-[10px] text-slate-400 mt-1 italic">*Excl. OPEX & COGS</p>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Net revenue</p>
+          <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-[#00d084] whitespace-nowrap tracking-tighter">{formatUS(data.trueNetRevenue)}</p>{renderPoP(data.trueNetRevenue, data.prevStats.trueNetRevenue, false)}</div>
+          <p className="text-[9px] text-slate-400 mt-1 italic">*Excl. OPEX & COGS</p>
         </div>
 
         {/* HÀNG CARD THỨ 2 */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold mb-2">Total Bills</p>
-          <div className="flex flex-col"><p className="text-2xl sm:text-3xl font-bold text-[#2b3674] truncate">{formatUS(data.totalBills)}</p>{renderPoP(data.totalBills, data.prevStats.totalBills, false)}</div>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Total Bills</p>
+          <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-[#2b3674] whitespace-nowrap tracking-tighter">{formatUS(data.totalBills)}</p>{renderPoP(data.totalBills, data.prevStats.totalBills, false)}</div>
         </div>
-        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold mb-2">AOV</p>
-          <div className="flex flex-col"><p className="text-2xl sm:text-3xl font-bold text-[#2b3674] truncate">{formatUS(data.aov)}</p>{renderPoP(data.aov, data.prevStats.aov, false)}</div>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">AOV</p>
+          <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-[#2b3674] whitespace-nowrap tracking-tighter">{formatUS(data.aov)}</p>{renderPoP(data.aov, data.prevStats.aov, false)}</div>
         </div>
-        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold mb-2">Discount rate</p>
-          <div className="flex flex-col"><p className="text-2xl sm:text-3xl font-bold text-[#2b3674] truncate">{formatUS(data.discountRateTB)}%</p>{renderPoP(data.discountRateTB, data.prevStats.discountRateTB, true)}</div>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Discount rate</p>
+          <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-[#2b3674] whitespace-nowrap tracking-tighter">{formatUS(data.discountRateTB)}%</p>{renderPoP(data.discountRateTB, data.prevStats.discountRateTB, true)}</div>
         </div>
-        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold mb-2">Waste Qty</p>
-          <div className="flex flex-col"><p className="text-2xl sm:text-3xl font-bold text-red-500 truncate">{formatUS(data.wasteQty)}</p>{renderPoP(data.wasteQty, data.prevStats.wasteQty, true)}</div>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Waste Qty</p>
+          <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-red-500 whitespace-nowrap tracking-tighter">{formatUS(data.wasteQty)}</p>{renderPoP(data.wasteQty, data.prevStats.wasteQty, true)}</div>
         </div>
-        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold mb-2">Waste Ratio</p>
-          <div className="flex flex-col"><p className="text-2xl sm:text-3xl font-bold text-red-500 truncate">{formatUS(data.wasteRatio)}%</p>{renderPoP(data.wasteRatio, data.prevStats.wasteRatio, true)}</div>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Waste Ratio</p>
+          <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-red-500 whitespace-nowrap tracking-tighter">{formatUS(data.wasteRatio)}%</p>{renderPoP(data.wasteRatio, data.prevStats.wasteRatio, true)}</div>
         </div>
-        <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold mb-2">Cancel rate</p>
-          <div className="flex flex-col"><p className="text-2xl sm:text-3xl font-bold text-slate-800 truncate">{formatUS(data.cancelRate)}%</p>{renderPoP(data.cancelRate, data.prevStats.cancelRate, true)}</div>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <p className="text-[11px] sm:text-sm text-slate-500 font-semibold mb-1 sm:mb-2">Cancel rate</p>
+          <div className="flex flex-col"><p className="text-[13px] min-[375px]:text-[15px] sm:text-2xl lg:text-3xl font-bold text-slate-800 whitespace-nowrap tracking-tighter">{formatUS(data.cancelRate)}%</p>{renderPoP(data.cancelRate, data.prevStats.cancelRate, true)}</div>
         </div>
       </div>
 
@@ -136,7 +136,7 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                 <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-slate-50 pb-2 last:border-0">
                   <div className="flex items-center flex-1 min-w-0 pr-2">
                     <span className="w-3 h-3 rounded-full mr-2 shrink-0" style={{ backgroundColor: p.color }}></span>
-                    <span className="text-slate-500 font-medium break-words leading-tight truncate" title={p.name}>{p.name}</span>
+                    <span className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden" title={p.name}>{p.name}</span>
                   </div>
                   <span className="font-bold text-[#2b3674] shrink-0 text-right">{formatUS(p.value)}</span>
                 </div>
@@ -260,7 +260,7 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
                 <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs xl:text-sm w-full border-b border-slate-50 pb-2 last:border-0">
                   <div className="flex items-center flex-1 min-w-0 pr-2">
                     <span className="w-3 h-3 rounded-full mr-2 shrink-0" style={{ backgroundColor: p.color }}></span>
-                    <span className="text-slate-500 font-medium break-words leading-tight truncate" title={p.name}>{p.name}</span>
+                    <span className="text-slate-500 font-medium whitespace-nowrap text-ellipsis overflow-hidden" title={p.name}>{p.name}</span>
                   </div>
                   <span className="font-bold text-[#2b3674] shrink-0 text-right">
                     {formatUS(p.value)} <span className="text-slate-400 font-normal ml-1">({data.wasteQty > 0 ? ((p.value / data.wasteQty) * 100).toFixed(1) : 0}%)</span>
@@ -300,6 +300,7 @@ function OverviewTab({ data, utils }: { data: any, utils: any }) {
             </table>
           </div>
         </div>
+        
         <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100">
           <h3 className="font-bold mb-6 text-sm sm:text-base text-[#2b3674]">Top 5 Waste Products (By Group)</h3>
           <div className="overflow-y-auto overflow-x-auto max-h-[400px]">
