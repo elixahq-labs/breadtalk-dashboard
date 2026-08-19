@@ -269,15 +269,21 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
 
       if (sku) {
         const key = `${groupName}_${sku}`;
-        if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open: 0, process: 0, import: 0, export: 0, sales: 0, waste: 0, stock: 0, gap: 0 };
+        if (!gapMap[key]) gapMap[key] = { group: groupName, sku, name, open:0, process:0, buying:0, import:0, export:0, sales:0, waste:0, stock:0, gap:0 };
         if (tType === 'Stock' && rowTime === openTime) gapMap[key].open += qty;
         if (tType === 'Stock' && rowTime === endTime) gapMap[key].stock += qty;
         if (isCurrentPeriod) {
           if (tType === 'Process') gapMap[key].process += qty;
+          if (tType === 'Buying') gapMap[key].buying += qty;
           if (tType === 'Import') gapMap[key].import += qty;
           if (tType === 'Export') gapMap[key].export += qty;
           if (tType === 'Sales') gapMap[key].sales += qty;
           if (tType === 'Waste') gapMap[key].waste += qty;
+
+          // Hỗ trợ nếu Buying nằm trong Ticket-Type "Ticket" với Type-Info "Buying-Ticket"
+          if (tType === 'Ticket' && tInfo === 'Buying-Ticket') {
+            gapMap[key].buying += qty;
+          }
         }
       }
 
@@ -439,7 +445,7 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
       items: Object.values(wasteMapByGroup[group]).filter((i: any) => i.qty > 0).sort((a: any, b: any) => b.qty - a.qty).slice(0, 5)
     })).filter(g => g.items.length > 0);
 
-    const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Others').sort((a, b) => a.group.localeCompare(b.group));
+    const gData = Object.values(gapMap).map(r => { r.gap = r.open + r.process + r.buying + r.import - r.export - r.sales - r.waste - r.stock; return r; }).filter(r => r.gap !== 0 && r.group !== 'Others').sort((a, b) => a.group.localeCompare(b.group));
 
     const cReasonData = Object.keys(cancelReasonMap).map(k => ({ name: k, qty: cancelReasonMap[k] })).sort((a, b) => b.qty - a.qty);
 
@@ -527,46 +533,46 @@ export default function DashboardClient({ fileNames }: { fileNames: string[] }) 
   }, [baseFilteredData, startDate, endDate, rawData, reviewFilter]);
 
   const renderPoP = (current: number, prev: number, inverseColor: boolean = false, isDarkBg: boolean = false) => {
-  if (!prev || prev === 0) {
+    if (!prev || prev === 0) {
+      return (
+        <span className={`text-[11px] sm:text-xs font-normal mt-1 ${isDarkBg ? 'text-blue-200' : 'text-slate-400'}`}>
+          --
+        </span>
+      );
+    }
+
+    const changePercent = ((current - prev) / prev) * 100;
+
+    // Trường hợp không thay đổi (0%)
+    if (changePercent === 0) {
+      return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-wide mt-1 w-max ${isDarkBg ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+          - <span className="ml-1 font-medium opacity-70 hidden xl:inline">vs prev</span>
+        </span>
+      );
+    }
+
+    const isPositive = changePercent > 0;
+
+    let bgClass = "";
+    let textClass = "";
+
+    if (isDarkBg) {
+      bgClass = isPositive ? (inverseColor ? 'bg-red-400/20' : 'bg-[#00d084]/20') : (inverseColor ? 'bg-[#00d084]/20' : 'bg-red-400/20');
+      textClass = isPositive ? (inverseColor ? 'text-red-300' : 'text-[#00d084]') : (inverseColor ? 'text-[#00d084]' : 'text-red-300');
+    } else {
+      bgClass = isPositive ? (inverseColor ? 'bg-red-50' : 'bg-emerald-50') : (inverseColor ? 'bg-emerald-50' : 'bg-red-50');
+      textClass = isPositive ? (inverseColor ? 'text-red-600' : 'text-emerald-600') : (inverseColor ? 'text-emerald-600' : 'text-red-600');
+    }
+
+    const arrow = isPositive ? '↑' : '↓';
+
     return (
-      <span className={`text-[11px] sm:text-xs font-normal mt-1 ${isDarkBg ? 'text-blue-200' : 'text-slate-400'}`}>
-        --
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-wide mt-1 w-max ${bgClass} ${textClass}`}>
+        {arrow} {Math.abs(changePercent).toFixed(1)}% <span className="ml-1 font-medium opacity-70 hidden xl:inline">vs prev</span>
       </span>
     );
-  }
-
-  const changePercent = ((current - prev) / prev) * 100;
-
-  // Trường hợp không thay đổi (0%)
-  if (changePercent === 0) {
-    return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-wide mt-1 w-max ${isDarkBg ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-        - <span className="ml-1 font-medium opacity-70 hidden xl:inline">vs prev</span>
-      </span>
-    );
-  }
-
-  const isPositive = changePercent > 0;
-
-  let bgClass = "";
-  let textClass = "";
-
-  if (isDarkBg) {
-    bgClass = isPositive ? (inverseColor ? 'bg-red-400/20' : 'bg-[#00d084]/20') : (inverseColor ? 'bg-[#00d084]/20' : 'bg-red-400/20');
-    textClass = isPositive ? (inverseColor ? 'text-red-300' : 'text-[#00d084]') : (inverseColor ? 'text-[#00d084]' : 'text-red-300');
-  } else {
-    bgClass = isPositive ? (inverseColor ? 'bg-red-50' : 'bg-emerald-50') : (inverseColor ? 'bg-emerald-50' : 'bg-red-50');
-    textClass = isPositive ? (inverseColor ? 'text-red-600' : 'text-emerald-600') : (inverseColor ? 'text-emerald-600' : 'text-red-600');
-  }
-
-  const arrow = isPositive ? '↑' : '↓';
-
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-wide mt-1 w-max ${bgClass} ${textClass}`}>
-      {arrow} {Math.abs(changePercent).toFixed(1)}% <span className="ml-1 font-medium opacity-70 hidden xl:inline">vs prev</span>
-    </span>
-  );
-};
+  };
 
   if (isLoading) {
     return (

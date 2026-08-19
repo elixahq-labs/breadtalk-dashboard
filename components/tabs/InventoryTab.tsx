@@ -19,11 +19,15 @@ function InventoryTab({ data, utils }: { data: any, utils: any }) {
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="sticky top-0 bg-white shadow-sm z-10">
               <tr className="text-slate-400 border-b border-slate-100">
-                <th className="pb-3 px-3 font-semibold">Store</th><th className="pb-3 px-3 font-semibold">Date</th><th className="pb-3 px-3 font-semibold">Ticket Type</th><th className="pb-3 px-3 font-semibold text-center">Qty</th><th className="pb-3 px-3 font-semibold text-center">Aging Days</th>
+                <th className="pb-3 px-3 font-semibold">Store</th>
+                <th className="pb-3 px-3 font-semibold">Date</th>
+                <th className="pb-3 px-3 font-semibold">Ticket Type</th>
+                <th className="pb-3 px-3 font-semibold text-center">Qty</th>
+                <th className="pb-3 px-3 font-semibold text-center">Aging Days</th>
               </tr>
             </thead>
             <tbody>
-              {data.agingTickets.map((ticket:any, idx:number) => {
+              {data.agingTickets.map((ticket: any, idx: number) => {
                 const isCritical = ticket.aging > 5 && !ticket.isMissing;
                 let rowClass = 'text-slate-700 hover:bg-slate-50 transition-colors';
                 if (ticket.isMissing) rowClass = 'bg-red-50 text-red-800 font-bold border-l-4 border-l-red-500';
@@ -55,17 +59,34 @@ function InventoryTab({ data, utils }: { data: any, utils: any }) {
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="sticky top-0 bg-white z-10 shadow-sm">
               <tr className="text-slate-400 border-b border-slate-100">
-                <th className="pb-3 px-3 font-semibold">Group</th><th className="pb-3 px-3 font-semibold">SKU</th><th className="pb-3 px-3 font-semibold">Product-Name</th>
-                <th className="pb-3 px-3 font-semibold text-right">Open</th><th className="pb-3 px-3 font-semibold text-right">Process</th><th className="pb-3 px-3 font-semibold text-right">Import</th><th className="pb-3 px-3 font-semibold text-right">Export</th><th className="pb-3 px-3 font-semibold text-right">Sales</th><th className="pb-3 px-3 font-semibold text-right">Waste</th><th className="pb-3 px-3 font-semibold text-right">Stock</th><th className="pb-3 px-3 font-bold text-right text-slate-800">GAP</th>
+                <th className="pb-3 px-3 font-semibold">Group</th>
+                <th className="pb-3 px-3 font-semibold">SKU</th>
+                <th className="pb-3 px-3 font-semibold">Product-Name</th>
+                <th className="pb-3 px-3 font-semibold text-right">Open</th>
+                <th className="pb-3 px-3 font-semibold text-right">Process</th>
+                <th className="pb-3 px-3 font-semibold text-right">Buying</th>
+                <th className="pb-3 px-3 font-semibold text-right">Import</th>
+                <th className="pb-3 px-3 font-semibold text-right">Export</th>
+                <th className="pb-3 px-3 font-semibold text-right">Sales</th>
+                <th className="pb-3 px-3 font-semibold text-right">Waste</th>
+                <th className="pb-3 px-3 font-semibold text-right">Stock</th>
+                <th className="pb-3 px-3 font-bold text-right text-slate-800">GAP</th>
               </tr>
             </thead>
             <tbody>
-              {data.gapData.map((row:any, idx:number) => (
+              {data.gapData.map((row: any, idx: number) => (
                 <tr key={idx} className="border-b border-slate-50 text-slate-600 hover:bg-slate-50 transition-colors">
                   <td className="py-4 px-3 text-xs sm:text-sm font-medium">{row.group}</td>
                   <td className="py-4 px-3 text-xs sm:text-sm">{row.sku}</td>
                   <td className="py-4 px-3 font-semibold text-slate-800 whitespace-normal break-words min-w-[250px] sm:min-w-[300px] leading-snug">{row.name}</td>
-                  <td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.open)}</td><td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.process)}</td><td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.import)}</td><td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.export)}</td><td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.sales)}</td><td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.waste)}</td><td className="py-4 px-3 text-right text-xs sm:text-sm font-medium">{formatUS(row.stock)}</td>
+                  <td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.open)}</td>
+                  <td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.process)}</td>
+                  <td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.buying)}</td>
+                  <td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.import)}</td>
+                  <td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.export)}</td>
+                  <td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.sales)}</td>
+                  <td className="py-4 px-3 text-right text-xs sm:text-sm">{formatUS(row.waste)}</td>
+                  <td className="py-4 px-3 text-right text-xs sm:text-sm font-medium">{formatUS(row.stock)}</td>
                   <td className={`py-4 px-3 text-right font-black text-sm sm:text-base ${row.gap < 0 ? 'text-red-500' : 'text-orange-500'}`}>{formatUS(row.gap)}</td>
                 </tr>
               ))}
